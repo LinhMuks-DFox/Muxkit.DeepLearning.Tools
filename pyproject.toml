@@ -4,7 +4,7 @@ version = "0.1.0"
 description = "A tool set for Deep learning researching"
 authors = ["Mux <muxxum65536@gmail.com>"]
 readme = "README.md"
-packages = [{include = "muxkit"}]
+packages = []
 
 [tool.poetry.dependencies]
 python = "^3.10"
