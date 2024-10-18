@@ -1,6 +1,8 @@
-import torch
-import pyroomacoustics
 import unittest
+
+import pyroomacoustics
+import torch
+
 from audio_tools.PyroomSimulation import RoomSimulation, random_microphone_array_position
 
 

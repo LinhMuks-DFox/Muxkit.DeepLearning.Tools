@@ -1,8 +1,10 @@
 import unittest
+
 import torch
-import numpy as np
-from sklearn.metrics import accuracy_score
-from score_tools.ClassifierTester import ClassifierTester 
+
+from score_tools.ClassifierTester import ClassifierTester
+
+
 # 模拟的模型
 class DummyModel(torch.nn.Module):
     def __init__(self, output_size):
@@ -11,6 +13,7 @@ class DummyModel(torch.nn.Module):
 
     def forward(self, x):
         return self.linear(x)
+
 
 class TestClassifierTester(unittest.TestCase):
     def setUp(self):
@@ -21,7 +24,8 @@ class TestClassifierTester(unittest.TestCase):
 
         # 设置多标签模型
         self.multi_label_model = DummyModel(output_size=3)  # 假设有3个标签
-        self.multi_label_tester = ClassifierTester(self.multi_label_model, self.device, n_classes=3, sigmoid_before_thresholding=True)
+        self.multi_label_tester = ClassifierTester(self.multi_label_model, self.device, n_classes=3,
+                                                   sigmoid_before_thresholding=True)
 
         # 模拟的数据
         self.batch_size = 5
@@ -95,6 +99,7 @@ class TestClassifierTester(unittest.TestCase):
         self.multi_label_tester.predict_all(multi_label=True)
         report_multi = self.multi_label_tester.classification_report(multi_label=True)
         self.assertIsInstance(report_multi, str)
+
 
 if __name__ == '__main__':
     unittest.main()

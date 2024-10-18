@@ -54,6 +54,7 @@ def unfinished_api(func):
 def bug_api(func):
     @functools.wraps(func)
     def new_func(*args, **kwargs):
-        raise NotImplementedError(f"The function {func.__name__} is known to have a bug and has not been implemented properly.")
+        raise NotImplementedError(
+            f"The function {func.__name__} is known to have a bug and has not been implemented properly.")
 
     return new_func

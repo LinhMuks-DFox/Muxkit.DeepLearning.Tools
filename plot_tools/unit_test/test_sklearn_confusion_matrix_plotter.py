@@ -1,9 +1,9 @@
 import unittest
+
 import numpy as np
-from unittest.mock import MagicMock, patch
+
 from plot_tools.SklearnConfusionMatrixPlotter import \
     ConfusionMatrixPlotter  # Adjust the import path to match your project structure
-import matplotlib.pyplot as plt  # Import matplotlib directly
 
 
 class TestConfusionMatrixPlotter(unittest.TestCase):

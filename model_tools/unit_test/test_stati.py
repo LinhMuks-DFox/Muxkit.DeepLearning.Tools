@@ -1,5 +1,7 @@
 import unittest
+
 import torch
+
 from model_tools.stati import freeze_module, unfreeze_module, get_size, stati_model
 
 

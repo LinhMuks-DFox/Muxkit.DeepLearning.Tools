@@ -1,6 +1,6 @@
 import abc
-import warnings
 import typing
+
 import numpy as np
 import sklearn.metrics as metrics
 import torch
@@ -39,7 +39,8 @@ class ClassifierTester(abc.ABC):
         self.dataloader_ = dataloader
         self.y_true_ = torch.zeros((0, self.n_classes_), dtype=torch.int).to(self.device_)
         self.y_predict_ = torch.zeros((0, self.n_classes_), dtype=torch.float).to(self.device_)
-        self.y_predict_binary_ = torch.zeros((0, self.n_classes_), dtype=torch.int).to(self.device_)  # Multi-label support
+        self.y_predict_binary_ = torch.zeros((0, self.n_classes_), dtype=torch.int).to(
+            self.device_)  # Multi-label support
         return self
 
     @torch.no_grad()
@@ -98,7 +99,8 @@ class ClassifierTester(abc.ABC):
 
     def calculate_precision(self, multi_label=False):
         if multi_label:
-            self.precision_ = metrics.precision_score(self.y_true_, self.y_predict_binary_, average="macro", zero_division=0)
+            self.precision_ = metrics.precision_score(self.y_true_, self.y_predict_binary_, average="macro",
+                                                      zero_division=0)
         else:
             self.precision_ = metrics.precision_score(self.y_true_, self.y_predict_, average="macro", zero_division=0)
         return self
