@@ -1,5 +1,8 @@
 import torch
+import api_tags as tags
 
+
+@tags.stable_api
 def fix_length(audio_data: torch.Tensor, sample_length: int) -> torch.Tensor:
     """
     Adjust the length of the input audio data to match the given sample length.
