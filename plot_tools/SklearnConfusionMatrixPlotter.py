@@ -4,6 +4,7 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 import warnings
 
+
 class ConfusionMatrixPlotter:
 
     def __init__(self, class2label, compose_path_func):
@@ -29,6 +30,7 @@ class ConfusionMatrixPlotter:
         :param n_rows: Number of rows for the multi-label confusion matrix plot.
         :param n_cols: Number of columns for the multi-label confusion matrix plot.
         """
+
         def plot_individual_confusion_matrix(cm, ax, idx):
             # Normalize the confusion matrix
             norm_cm = cm / (cm.sum(axis=1, keepdims=True) + 1e-10)
@@ -54,7 +56,7 @@ class ConfusionMatrixPlotter:
             num_plots = total_images // num_images_per_plot
             if total_images % num_images_per_plot != 0:
                 num_plots += 1
-            
+
             adjusted_fig_size = (n_cols * 4, n_rows * 4)
             if not os.path.exists(self.compose_path(f"{prefix}_confusion_matrix")):
                 os.makedirs(self.compose_path(f"{prefix}"))
@@ -72,7 +74,7 @@ class ConfusionMatrixPlotter:
                         plot_individual_confusion_matrix(confusion_matrix[idx], ax[i, j], idx)
 
                 plt.tight_layout()
-                plt_path = self.compose_path(f"{prefix}/cfx_{plot_index}.png")
+                plt_path = self.compose_path(f"{prefix}/cfx_{plot_index}.pdf")
                 os.makedirs(os.path.dirname(plt_path), exist_ok=True)  # Ensure directory exists
                 plt.savefig(plt_path, dpi=400)
                 plt.close()
