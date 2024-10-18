@@ -8,51 +8,8 @@ import api_tags as tags
 
 PyRoomAcousticRoomMaker = typing.Callable[[], pyroomacoustics.Room]
 
+
 @tags.stable_api
-class TorchRoomAcoustic(nn.Module):
-    """
-    A PyTorch module that integrates PyRoomAcoustics for room simulation 
-    and torchaudio for applying the resulting room simulation on audio data.
-
-    Args:
-        new_room_creator (Callable): A callable that creates a PyRoomAcoustics Room object.
-        source_location (List[float]): The location of the sound source in the room.
-
-    Forward Input:
-        sample (torch.Tensor): A tensor containing the audio sample to simulate. Expected to be 1D.
-
-    Forward Output:
-        torch.Tensor: Simulated microphone signals after room simulation.
-    """
-    
-    def __init__(self,
-                 new_room_creator: PyRoomAcousticRoomMaker,
-                 source_location: typing.List[float],
-                 ):
-        super().__init__()
-        self.room_creator = new_room_creator
-        self.source_location = source_location
-
-    def forward(self, sample: torch.Tensor) -> torch.Tensor:
-        """
-        Forward pass to simulate the room acoustics for the given audio sample.
-
-        Args:
-            sample (torch.Tensor): Audio tensor to simulate, expected as [n_sample].
-
-        Returns:
-            torch.Tensor: The resulting microphone signals after room simulation.
-        """
-        # Convert the sample to numpy for PyRoomAcoustics compatibility
-        sample = sample.detach().numpy().flatten()
-        room = self.room_creator()
-        room.add_source(self.source_location, signal=sample)
-        room.simulate()
-        # Convert the room's mic array signals back to torch.Tensor
-        output = torch.tensor(room.mic_array.signals)
-        return output
-
-@tags.untested
 class RoomSimulation(nn.Module):
     """
     A PyTorch module to apply Room Impulse Response (RIR) convolution to an audio sample 
@@ -72,7 +29,7 @@ class RoomSimulation(nn.Module):
         - The RIR kernels are stored as non-updatable torch tensors.
         - Convolution can be performed on both GPU and CPU.
     """
-    
+
     def __init__(self, make_room, n_mic):
         super().__init__()
         self.rir = nn.Parameter(self.__init_rir(make_room), requires_grad=False)
