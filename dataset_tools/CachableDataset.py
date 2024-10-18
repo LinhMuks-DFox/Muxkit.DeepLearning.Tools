@@ -1,6 +1,7 @@
 from multiprocessing import Manager
 import torch.utils.data as data
 
+
 class CacheableDataset(data.Dataset):
 
     def __init__(self, dataset: data.Dataset, max_cache_size: int = 1000, multiprocessing: bool = False) -> None:
@@ -34,11 +35,11 @@ class CacheableDataset(data.Dataset):
 
         # Retrieve data from the original dataset
         x, y = self.dataset[idx]
-        
+
         # Set the device if it hasn't been set yet
         if self.device is None:
             self.device = x.device
-        
+
         # Cache data if cache has not reached the maximum capacity
         if len(self.cache) < self.max_cache_size:
             self.cache[idx] = (x.detach().cpu().clone(), y.detach().cpu().clone())
