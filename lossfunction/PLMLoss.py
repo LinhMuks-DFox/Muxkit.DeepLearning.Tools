@@ -5,7 +5,6 @@ import numpy as np
 import typing
 
 
-
 class PLMLoss(nn.Module):
     """
         Partial Label Masking Loss (PLMLoss) function:
@@ -63,9 +62,10 @@ class PLMLoss(nn.Module):
         """
 
     _LOSS_KERNEL_ = {
-        "bce" : F.binary_cross_entropy_with_logits,
+        "bce": F.binary_cross_entropy_with_logits,
         "cross_entropy": F.cross_entropy
     }
+
     def __init__(self,
                  label_distribution: torch.Tensor,
                  lambda_rate=0.1,
