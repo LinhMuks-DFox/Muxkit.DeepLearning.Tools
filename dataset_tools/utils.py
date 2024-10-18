@@ -1,5 +1,7 @@
 import torch
 import numpy as np
+import typing
+
 
 def label_digit2tensor(label_digits: typing.List[int], class_num=527) -> torch.Tensor:
     """
