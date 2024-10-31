@@ -1,149 +1,73 @@
-import abc
-import typing
-
 import numpy as np
 import sklearn.metrics as metrics
 import torch
 import tqdm
 
+import abc
+import typing
+
 
 class ClassifierTester(abc.ABC):
-    def __init__(self, model, device, n_classes: int, binary_decision_threshold=0.5, sigmoid_before_thresholding=False):
-        self.model_ = model
-        self.device_ = device
-        self.n_classes_ = n_classes
-        self.binary_decision_threshold = binary_decision_threshold
-        self.sigmoid_before_thresholding = sigmoid_before_thresholding
-        self.dataloader_ = None
-        self.loss_fn_ = None
 
-        # Metrics
+    def __init__(self, model, device):
+        self.model_ = model
+        self.dataloader_ = None
+        self.device_ = device
+        self.loss_fn_ = None
+        self.n_classes_ = None
+
         self.confusion_matrix_ = None
+        self.sklearn_confusion_matrix_ = None
         self.accuracy_ = None
         self.precision_ = None
         self.recall_ = None
         self.f1_score_ = None
-        self.hamming_loss_ = None
 
-        # Predictions and ground truth
-        self.y_predict_ = None
-        self.y_true_ = None
-        self.y_predict_binary_ = None  # For multi-label classification
-        self.loss_ = torch.zeros(0, dtype=torch.float).to(self.device_)
+        self.y_predict_ = None  # np.ndarray
+        self.y_true_ = None  # np.ndarray
+        self.loss_ = None  # torch.Tensor
 
     def set_loss_function(self, loss: typing.Callable):
         self.loss_fn_ = loss
         return self
 
-    def set_dataloader(self, dataloader):
-        self.dataloader_ = dataloader
-        self.y_true_ = torch.zeros((0, self.n_classes_), dtype=torch.int).to(self.device_)
-        self.y_predict_ = torch.zeros((0, self.n_classes_), dtype=torch.float).to(self.device_)
-        self.y_predict_binary_ = torch.zeros((0, self.n_classes_), dtype=torch.int).to(
-            self.device_)  # Multi-label support
-        return self
+    @abc.abstractmethod
+    def set_dataloader(self, dataloader, n_class: int):
+        pass
 
-    @torch.no_grad()
-    def predict_all(self, multi_label=False):
-        self.model_.eval()
-        self.model_.to(self.device_)
+    @abc.abstractmethod
+    def predict_all(self):
+        pass
 
-        for data, label in tqdm.tqdm(self.dataloader_):
-            data, label = data.to(self.device_), label.to(self.device_)
-            output = self.model_(data)
+    @abc.abstractmethod
+    def calculate_confusion_matrix(self):
+        pass
 
-            if self.loss_fn_:
-                loss = self.loss_fn_(output, label)
-                self.loss_ = torch.cat([self.loss_, loss])
+    @abc.abstractmethod
+    def calculate_accuracy(self, ):
+        pass
 
-            if multi_label:
-                if self.sigmoid_before_thresholding:
-                    output = torch.sigmoid(output)
-                binary_prediction = self.make_binary_prediction(output)
-                self.y_predict_binary_ = torch.cat([self.y_predict_binary_, binary_prediction])
+    @abc.abstractmethod
+    def calculate_precision(self, ):
+        pass
 
-            else:
-                predicted_y = torch.argmax(output, dim=1)
-                self.y_predict_ = torch.cat([self.y_predict_, predicted_y])
+    @abc.abstractmethod
+    def calculate_recall(self, ):
+        pass
 
-            # Handle ground truth for both label types
-            if len(label.shape) > 1:
-                label = torch.argmax(label, dim=1)  # One-hot to int
-            self.y_true_ = torch.cat([self.y_true_, label])
+    @abc.abstractmethod
+    def calculate_f1_score(self, ):
+        pass
 
-        self.y_true_ = self.y_true_.detach().cpu().numpy()
-        self.y_predict_ = self.y_predict_.detach().cpu().numpy()
-        if multi_label:
-            self.y_predict_binary_ = self.y_predict_binary_.detach().cpu().numpy()
-
-        return self
-
-    def make_binary_prediction(self, y_probability: torch.Tensor):
-        ret = torch.zeros_like(y_probability, dtype=torch.int)
-        ret[y_probability >= self.binary_decision_threshold] = 1
-        return ret
-
-    def calculate_confusion_matrix(self, multi_label=False):
-        if multi_label:
-            self.confusion_matrix_ = metrics.multilabel_confusion_matrix(self.y_true_, self.y_predict_binary_)
-        else:
-            self.confusion_matrix_ = metrics.confusion_matrix(self.y_true_, self.y_predict_)
-        return self
-
-    def calculate_accuracy(self, multi_label=False):
-        if multi_label:
-            self.accuracy_ = self.multilabel_accuracy(self.y_true_, self.y_predict_binary_)
-        else:
-            self.accuracy_ = metrics.accuracy_score(self.y_true_, self.y_predict_)
-        return self
-
-    def calculate_precision(self, multi_label=False):
-        if multi_label:
-            self.precision_ = metrics.precision_score(self.y_true_, self.y_predict_binary_, average="macro",
-                                                      zero_division=0)
-        else:
-            self.precision_ = metrics.precision_score(self.y_true_, self.y_predict_, average="macro", zero_division=0)
-        return self
-
-    def calculate_recall(self, multi_label=False):
-        if multi_label:
-            self.recall_ = metrics.recall_score(self.y_true_, self.y_predict_binary_, average="macro", zero_division=0)
-        else:
-            self.recall_ = metrics.recall_score(self.y_true_, self.y_predict_, average="macro", zero_division=0)
-        return self
-
-    def calculate_f1_score(self, multi_label=False):
-        if multi_label:
-            self.f1_score_ = metrics.f1_score(self.y_true_, self.y_predict_binary_, average="macro", zero_division=0)
-        else:
-            self.f1_score_ = metrics.f1_score(self.y_true_, self.y_predict_, average="macro", zero_division=0)
-        return self
-
-    def calculate_hamming_loss(self):
-        self.hamming_loss_ = metrics.hamming_loss(self.y_true_, self.y_predict_binary_)
-        return self
-
-    def evaluate_model(self, multi_label=False):
-        self.predict_all(multi_label)
-        self.calculate_all_metrics(multi_label)
-        return self.status_map()
-
-    def calculate_all_metrics(self, multi_label=False):
-        self.calculate_accuracy(multi_label)
-        self.calculate_precision(multi_label)
-        self.calculate_recall(multi_label)
-        self.calculate_f1_score(multi_label)
-        self.calculate_confusion_matrix(multi_label)
-        if multi_label:
-            self.calculate_hamming_loss()
-        return self
-
-    def classification_report(self, multi_label=False):
-        if multi_label:
-            return metrics.classification_report(self.y_true_, self.y_predict_binary_, zero_division=0)
-        return metrics.classification_report(self.y_true_, self.y_predict_, zero_division=0)
-
-    def status_map(self):
+    def status_map(self) -> typing.Dict:
+        if not all([
+            self.f1_score_ is not None,
+            self.accuracy_ is not None,
+            self.precision_ is not None,
+            self.recall_ is not None,
+            self.confusion_matrix_ is not None,
+        ]):
+            raise ValueError("None metrics exist, use calculate_all_metrics() before calling status_map")
         return {
             "f1_score": self.f1_score_,
             "accuracy": self.accuracy_,
@@ -152,10 +76,102 @@ class ClassifierTester(abc.ABC):
             "confusion_matrix": self.confusion_matrix_,
         }
 
-    @staticmethod
-    def multilabel_accuracy(y_true: np.ndarray, y_predict: np.ndarray):
-        n_class = y_true.shape[1]
-        acc = np.zeros(n_class)
-        for i in range(n_class):
-            acc[i] = metrics.accuracy_score(y_true[:, i], y_predict[:, i])
-        return np.mean(acc)
+    @abc.abstractmethod
+    def evaluate_model(self):
+        pass
+
+    @abc.abstractmethod
+    def calculate_all_metrics(self):
+        pass
+
+    @abc.abstractmethod
+    def classification_report(self, ):
+        pass
+
+
+class MonoLabelClassificationTester(ClassifierTester):
+
+    def __init__(self,
+                 model: torch.nn.Module,
+                 device: torch.device,
+                 ):
+        super().__init__(model, device)
+
+    def set_dataloader(self, dataloader, n_class: int) -> "MonoLabelClassificationTester":
+        self.dataloader_ = dataloader
+        self.n_classes_ = n_class
+        self.y_predict_ = torch.zeros(0, dtype=torch.int32).to(self.device_)
+        self.y_true_ = torch.zeros(0, dtype=torch.int32).to(self.device_)
+        self.loss_ = torch.zeros(0, dtype=torch.float).to(self.device_)
+        return self
+
+    @torch.no_grad()
+    def predict_all(self) -> "MonoLabelClassificationTester":
+        if self.dataloader_ is None or self.y_predict_ is None or self.y_true_ is None:
+            raise ValueError("dataloader, y_predict, y_true is None, use set_dataloader() before calling predict_all")
+        self.model_.eval()
+        self.model_.to(self.device_)
+        data: torch.Tensor
+        label: torch.Tensor
+        for data, label in tqdm.tqdm(self.dataloader_):
+            data = data.to(self.device_)
+            label = label.to(self.device_)
+            model_out = self.model_(data)
+            predicted_y = torch.argmax(model_out, dim=1)
+            if self.loss_fn_ is not None:
+                self.loss_ = torch.hstack([self.loss_, self.loss_fn_(model_out, label)])
+            # if label is one-hot, convert it to int
+            if len(label.shape) > 1:
+                label = torch.argmax(label, dim=1)
+            self.y_true_ = torch.cat([self.y_true_, label])
+            self.y_predict_ = torch.cat([self.y_predict_, predicted_y])
+
+        self.y_true_: np.ndarray = self.y_true_.detach().cpu().numpy()
+        self.y_predict_: np.ndarray = self.y_predict_.detach().cpu().numpy()
+        return self
+
+    def calculate_confusion_matrix(self) -> "MonoLabelClassificationTester":
+        self.confusion_matrix_ = metrics.confusion_matrix(self.y_true_, self.y_predict_)
+        self.sklearn_confusion_matrix_ = self.confusion_matrix_
+        return self
+
+    def calculate_accuracy(self, ) -> "MonoLabelClassificationTester":
+        self.accuracy_ = metrics.accuracy_score(self.y_true_, self.y_predict_)
+        return self
+
+    def calculate_precision(self, ) -> "MonoLabelClassificationTester":
+        self.precision_ = metrics.precision_score(self.y_true_, self.y_predict_, average="macro", zero_division=0)
+        return self
+
+    def calculate_recall(self, ) -> "MonoLabelClassificationTester":
+        self.recall_ = metrics.recall_score(self.y_true_, self.y_predict_, average="macro", zero_division=0)
+        return self
+
+    def calculate_f1_score(self, ) -> "MonoLabelClassificationTester":
+        self.f1_score_ = metrics.f1_score(self.y_true_, self.y_predict_, average="macro", zero_division=0)
+        return self
+
+    def calculate_hamming_loss(self, ) -> "MonoLabelClassificationTester":
+        self.hamming_loss_ = metrics.hamming_loss(self.y_true_, self.y_predict_)
+        return self
+
+    def evaluate_model(self):
+        self.predict_all()
+        self.calculate_all_metrics()
+        return self.status_map()
+
+    def calculate_all_metrics(self) -> "MonoLabelClassificationTester":
+        if self.y_true_ is None or self.y_predict_ is None:
+            raise ValueError("y_true, y_predict is None, use predict_all() before calling calculate_all_metrics")
+        if isinstance(self.y_true_, torch.Tensor) or isinstance(self.y_predict_, torch.Tensor):
+            raise ValueError("y_true, y_predict is None, use predict_all() before calling calculate_all_metrics")
+        self.calculate_recall()
+        self.calculate_f1_score()
+        self.calculate_precision()
+        self.calculate_accuracy()
+        self.calculate_hamming_loss()
+        self.calculate_confusion_matrix()
+        return self
+
+    def classification_report(self, ):
+        return metrics.classification_report(self.y_true_, self.y_predict_, zero_division=np.nan)
