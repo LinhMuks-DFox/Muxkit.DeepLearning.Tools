@@ -1,6 +1,6 @@
 import torch
 
-import api_tags as tags
+from ..utl import api_tags as tags
 
 
 @tags.stable_api
@@ -22,3 +22,4 @@ def fix_length(audio_data: torch.Tensor, sample_length: int) -> torch.Tensor:
         padding = sample_length - current_length
         audio_data = torch.nn.functional.pad(audio_data, (0, padding))
     return audio_data
+

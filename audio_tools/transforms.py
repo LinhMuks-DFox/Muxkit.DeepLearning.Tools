@@ -1,9 +1,65 @@
 import random
-
+import torchvision.transforms as vision_transforms
+import torchvision.transforms.functional as vision_transform_fnc
+from typing import Union, List, Optional, Tuple
+import numpy as np
 import torch
 
-from lib.AudioSet.utils import tensor_masking, create_mask_chunk_2d
+def create_mask(size: Union[torch.Tensor, torch.Size, List[int]],
+                mask_rate: float = 0.5) -> torch.Tensor:
+    mask = torch.randn(*size) > mask_rate
+    return mask
 
+
+def create_mask_chunk_2d(size: torch.Size,
+                         mask_rate: float = 0.5, b: int = 8) -> torch.Tensor:
+    """
+    1. Create a mini mask with the given (size // b)
+        when b = 2, size=(4*4), mini_mask be-like:
+        [[1 0]
+         [0 1]]
+    2. resize mini mask, up sample it to the size, with mode nearest
+        [[1 0]       [[1 1 0 0]
+         [0 1]]  -->  [1 1 0 0]
+                      [0 0 1 1]
+                      [0 0 1 1]]
+    3. return the mask
+    :param size:
+    :param mask_rate:
+    :param b:
+    :return:
+    """
+    mini_mask_size: torch.Tensor = torch.div(torch.tensor(size, dtype=torch.int), b, rounding_mode="floor")
+    mini_mask: torch.Tensor = create_mask(mini_mask_size, mask_rate)
+    size: list = [*size]
+    mask: torch.Tensor = vision_transform_fnc.resize(img=mini_mask.unsqueeze(0), size=size,
+                                                     interpolation=vision_transforms.InterpolationMode.NEAREST)
+    return mask.squeeze(0)
+
+
+def tensor_masking(tensor_to_mask: torch.Tensor,
+                   mask_rate: float = .5, mask: Optional = None) -> \
+        Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
+    """
+    Given a tensor of audio data, return a tensor of masked audio data, a tensor of unmasked audio, and the mask:
+
+    Mask: [True, False, True, False, False, True, False, True, False, True]
+    Mask to bit:    [1, 0, 1, 0, 0, 1, 0, 1, 0, 1]
+    Original audio: [1, 1, 4, 5, 1, 4, 1, 9, 1, 9]
+    In this case, the masked audio will be:
+                    [1, 0, 4, 0, 0, 4, 0, 9, 0, 9]
+    And the Unmasked audio will be:
+                    [0, 1, 0, 5, 1, 0, 1, 0, 1, 0]
+    Masked audio + Unmasked audio = Original audio
+    :param tensor_to_mask:
+    :param mask_rate: Masking rate
+    :param mask: Mask to use. If None, a random mask will be created.
+    :return:
+    """
+    if mask is None:
+        mask = create_mask(tensor_to_mask.shape, mask_rate)
+    return torch.tensor(np.where(mask, tensor_to_mask.numpy(), 0)), \
+        torch.tensor(np.where(~mask, tensor_to_mask.numpy(), 0)), mask
 
 class TimeSequenceLengthFixer(torch.nn.Module):
     """

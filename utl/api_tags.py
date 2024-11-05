@@ -10,6 +10,30 @@ class UntestedAPIWarning(Warning):
     pass
 
 
+def deprecated(func):
+    """
+    This is a decorator which can be used to mark functions
+    as deprecated. It will result in a warning being emitted
+    when the function is used.
+    >>> @deprecated
+    >>> def my_func(*args, **kwargs):
+    >>>     return args, kwargs
+    >>> my_func(1, 2, a=3, b=4)
+    warning: Call to deprecated function my_func.
+    (1, 2), {'a': 3, 'b': 4}
+    """
+
+    @functools.wraps(func)
+    def new_func(*args, **kwargs):
+        warnings.simplefilter('always', DeprecationWarning)  # turn off filter
+        warnings.warn("Call to deprecated function {}.".format(func.__name__),
+                      category=DeprecationWarning,
+                      stacklevel=2)
+        warnings.simplefilter('default', DeprecationWarning)  # reset filter
+        return func(*args, **kwargs)
+
+    return new_func
+
 # A decorator to mark a function as untested
 def untested(func):
     @functools.wraps(func)
