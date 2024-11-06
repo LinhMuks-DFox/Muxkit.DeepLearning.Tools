@@ -29,18 +29,11 @@ class CacheableDataset(data.Dataset):
     def __getitem__(self, idx) -> tuple:
         if idx in self.cache:
             x, y = self.cache[idx]
-            # In single-process mode, tensors need to be moved to the correct device
-            if not self.multiprocessing:
-                return x.to(self.device), y.to(self.device)
             return x.to(self.device), y.to(self.device)
-
-        # Retrieve data from the original dataset
         x, y = self.dataset[idx]
-
-        # Cache data if cache has not reached the maximum capacity
         if len(self.cache) < self.max_cache_size:
-            self.cache[idx] = (x.detach().cpu().clone(), y.detach().cpu().clone())
-        return x.to(self.device), y.to(self.device)
+            self.cache[idx] = (x.detach().cpu().clone(), y.clone().detach().cpu().clone())
+        return x, y
 
     def __str__(self) -> str:
         """

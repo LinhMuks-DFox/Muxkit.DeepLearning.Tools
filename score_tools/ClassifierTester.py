@@ -151,10 +151,6 @@ class MonoLabelClassificationTester(ClassifierTester):
         self.f1_score_ = metrics.f1_score(self.y_true_, self.y_predict_, average="macro", zero_division=0)
         return self
 
-    def calculate_hamming_loss(self, ) -> "MonoLabelClassificationTester":
-        self.hamming_loss_ = metrics.hamming_loss(self.y_true_, self.y_predict_)
-        return self
-
     def evaluate_model(self):
         self.predict_all()
         self.calculate_all_metrics()
@@ -169,7 +165,6 @@ class MonoLabelClassificationTester(ClassifierTester):
         self.calculate_f1_score()
         self.calculate_precision()
         self.calculate_accuracy()
-        self.calculate_hamming_loss()
         self.calculate_confusion_matrix()
         return self
 

@@ -42,88 +42,77 @@ def plot_confusion_matrix(matrix: np.ndarray):
 
 @tags.unfinished_api
 class ConfusionMatrixPlotter:
-
-    def __init__(self, class2label, compose_path_func):
+    def __init__(self, class2label):
         """
-        Initializes the ConfusionMatrixPlotter class.
+        初始化 ConfusionMatrixPlotter 类。
 
-        :param class2label: A dictionary mapping class indices to labels and display names.
-        :param compose_path_func: A function to compose the path for saving plots.
+        :param class2label: 一个字典，将类索引映射到标签和显示名称。
         """
         self.class2label = class2label
-        self.compose_path = compose_path_func
 
-    def plot_sklearn_multi_label_confusion_matrix(self,
-                                                  confusion_matrix: np.ndarray,
-                                                  prefix: str,
-                                                  n_rows: int = 5,
-                                                  n_cols: int = 5):
+    def _plot_individual_confusion_matrix(self, cm, ax, idx):
         """
-        Plots the confusion matrix for multi-label classification or multi-class classification.
+        绘制单个2x2的混淆矩阵。
 
-        :param confusion_matrix: Confusion matrix, either multi-class or multi-label.
-        :param prefix: Prefix for the file path where the plots will be saved.
-        :param n_rows: Number of rows for the multi-label confusion matrix plot.
-        :param n_cols: Number of columns for the multi-label confusion matrix plot.
+        :param cm: 2x2混淆矩阵
+        :param ax: 绘制的matplotlib子图对象
+        :param idx: 类别的索引
         """
+        # 归一化混淆矩阵
+        norm_cm = cm / (cm.sum(axis=1, keepdims=True) + 1e-10)
+        norm_cm = np.nan_to_num(norm_cm)  # 处理除以零的情况
+        sns.heatmap(norm_cm, annot=True, fmt=".2f", cmap="Blues", cbar=False, ax=ax,
+                    annot_kws={"fontsize": 8}, linewidths=.5, linecolor='black', square=True)
 
-        def plot_individual_confusion_matrix(cm, ax, idx):
-            # Normalize the confusion matrix
-            norm_cm = cm / (cm.sum(axis=1, keepdims=True) + 1e-10)
-            norm_cm = np.nan_to_num(norm_cm)  # Handle division by zero
-            sns.heatmap(norm_cm, annot=True, fmt=".2f", cmap="Blues", cbar=False, ax=ax,
-                        annot_kws={"fontsize": 8}, linewidths=.5, linecolor='black', square=True)
+        # 根据背景颜色调整字体颜色，并添加原始值
+        for k, text in enumerate(ax.texts):
+            row, col = divmod(k, 2)
+            original_value = cm[row, col]
+            new_text = f"{text.get_text()}\n({original_value})"
+            text.set_text(new_text)
+            text.set_color('white' if float(text.get_text().split('\n')[0]) > 0.5 else 'black')
 
-            # Change font color based on the background color and add original values
-            for k, text in enumerate(ax.texts):
-                row, col = divmod(k, 2)
-                original_value = cm[row, col]
-                new_text = f"{text.get_text()}\n({original_value})"
-                text.set_text(new_text)
-                text.set_color('white' if float(text.get_text().split('\n')[0]) > 0.5 else 'black')
+        ax.axis('off')
+        ax.set_title(f"{idx} ({self.class2label[str(idx)]['display_name']})", fontsize=10)
 
-            ax.axis('off')
-            ax.set_title(f"{idx} ({self.class2label[str(idx)]['display_name']})", fontsize=10)
+    def plot(self, confusion_matrix, n_rows=1, n_cols=1):
+        """
+        绘制多类或多标签分类的混淆矩阵。
 
+        :param confusion_matrix: 已计算的混淆矩阵，multi-class为方阵，多标签为若干个2x2矩阵。
+        :param n_rows: 多标签时，图中显示的行数。
+        :param n_cols: 多标签时，图中显示的列数。
+        :return: matplotlib figure 对象
+        """
         if confusion_matrix.ndim == 3 and confusion_matrix.shape[1:] == (2, 2):
-            # Multi-label case with [n_class, 2, 2] shape
+            # 多标签分类情况，每个类别一个2x2的混淆矩阵
             num_images_per_plot = n_rows * n_cols
             total_images = len(confusion_matrix)
-            num_plots = total_images // num_images_per_plot
-            if total_images % num_images_per_plot != 0:
-                num_plots += 1
+            num_plots = (total_images + num_images_per_plot - 1) // num_images_per_plot
 
             adjusted_fig_size = (n_cols * 4, n_rows * 4)
-            if not os.path.exists(self.compose_path(f"{prefix}_confusion_matrix")):
-                os.makedirs(self.compose_path(f"{prefix}"))
+            fig, axs = plt.subplots(n_rows, n_cols, figsize=adjusted_fig_size)
+            axs = axs.flatten() if num_images_per_plot > 1 else [axs]
 
-            for plot_index in range(num_plots):
-                fig, ax = plt.subplots(n_rows, n_cols, figsize=adjusted_fig_size)
-                start_index = plot_index * num_images_per_plot
-                end_index = min((plot_index + 1) * num_images_per_plot, total_images)
+            for idx, ax in enumerate(axs):
+                matrix_idx = idx
+                if matrix_idx < total_images:
+                    self._plot_individual_confusion_matrix(confusion_matrix[matrix_idx], ax, matrix_idx)
+                else:
+                    ax.axis('off')  # Hide any extra subplots
 
-                for i in range(n_rows):
-                    for j in range(n_cols):
-                        idx = start_index + i * n_cols + j
-                        if idx >= end_index:
-                            break
-                        plot_individual_confusion_matrix(confusion_matrix[idx], ax[i, j], idx)
-
-                plt.tight_layout()
-                plt_path = self.compose_path(f"{prefix}/cfx_{plot_index}.pdf")
-                os.makedirs(os.path.dirname(plt_path), exist_ok=True)  # Ensure directory exists
-                plt.savefig(plt_path, dpi=400)
-                plt.close()
+            plt.tight_layout()
+            return fig
 
         elif confusion_matrix.ndim == 2 and confusion_matrix.shape[0] == confusion_matrix.shape[1]:
-            # Multi-class mono-label case with [n_class, n_class] shape
+            # 多类分类情况，方阵的混淆矩阵
             norm_confusion_matrix = confusion_matrix / (confusion_matrix.sum(axis=1, keepdims=True) + 1e-10)
-            norm_confusion_matrix = np.nan_to_num(norm_confusion_matrix)  # Handle division by zero
-            fig, ax = plt.subplots(figsize=(confusion_matrix.shape[0], confusion_matrix.shape[0]))
+            norm_confusion_matrix = np.nan_to_num(norm_confusion_matrix)  # 处理除以零的情况
+            fig, ax = plt.subplots(figsize=(confusion_matrix.shape[0] * 1.2, confusion_matrix.shape[0] * 1.2))
             sns.heatmap(norm_confusion_matrix, annot=True, fmt=".2f", cmap="Blues", cbar=True, ax=ax,
                         annot_kws={"fontsize": 8}, linewidths=.5, linecolor='black', square=True)
 
-            # Change font color based on the background color and add original values
+            # 根据背景颜色调整字体颜色，并添加原始值
             for k, text in enumerate(ax.texts):
                 row = k // confusion_matrix.shape[1]
                 col = k % confusion_matrix.shape[1]
@@ -133,10 +122,7 @@ class ConfusionMatrixPlotter:
                 text.set_color('white' if float(text.get_text().split('\n')[0]) > 0.5 else 'black')
 
             plt.tight_layout()
-            plt_path = self.compose_path(f"{prefix}/cfx_multiclass.pdf")
-            os.makedirs(os.path.dirname(plt_path), exist_ok=True)  # Ensure directory exists
-            plt.savefig(plt_path, dpi=300)
-            plt.close()
+            return fig
 
         else:
-            raise ValueError("Invalid shape for confusion_matrix")
+            raise ValueError("无效的混淆矩阵形状")
