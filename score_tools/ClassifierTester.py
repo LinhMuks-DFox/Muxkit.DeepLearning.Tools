@@ -9,11 +9,11 @@ import typing
 
 class ClassifierTester(abc.ABC):
 
-    def __init__(self, model, device):
+    def __init__(self, model, device, loss_fn):
         self.model_ = model
         self.dataloader_ = None
         self.device_ = device
-        self.loss_fn_ = None
+        self.loss_fn_ = loss_fn
         self.n_classes_ = None
 
         self.confusion_matrix_ = None
@@ -94,15 +94,16 @@ class MonoLabelClassificationTester(ClassifierTester):
     def __init__(self,
                  model: torch.nn.Module,
                  device: torch.device,
+                 loss_fn: torch.nn.Module
                  ):
-        super().__init__(model, device)
+        super().__init__(model, device, loss_fn)
 
     def set_dataloader(self, dataloader, n_class: int) -> "MonoLabelClassificationTester":
         self.dataloader_ = dataloader
         self.n_classes_ = n_class
-        self.y_predict_ = torch.zeros(0, dtype=torch.int32).to(self.device_)
-        self.y_true_ = torch.zeros(0, dtype=torch.int32).to(self.device_)
-        self.loss_ = torch.zeros(0, dtype=torch.float).to(self.device_)
+        self.y_predict_ = torch.empty(0, dtype=torch.int32).to(self.device_)
+        self.y_true_ = torch.empty(0, dtype=torch.int32).to(self.device_)
+        self.loss_ = torch.empty(0, dtype=torch.float).to(self.device_)
         return self
 
     @torch.no_grad()

@@ -40,7 +40,7 @@ def plot_confusion_matrix(matrix: np.ndarray):
     return fig
 
 
-@tags.unfinished_api
+@tags.stable_api
 class ConfusionMatrixPlotter:
     def __init__(self, class2label):
         """
