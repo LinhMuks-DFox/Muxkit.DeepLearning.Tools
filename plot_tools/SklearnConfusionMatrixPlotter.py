@@ -73,7 +73,7 @@ class ConfusionMatrixPlotter:
             text.set_color('white' if float(text.get_text().split('\n')[0]) > 0.5 else 'black')
 
         ax.axis('off')
-        ax.set_title(f"{idx} ({self.class2label[str(idx)]['display_name']})", fontsize=10)
+        ax.set_title(f"{idx} ({self.class2label[idx]['display_name']})", fontsize=10)
 
     def plot(self, confusion_matrix, n_rows=1, n_cols=1):
         """
