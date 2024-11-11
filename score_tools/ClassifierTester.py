@@ -5,6 +5,54 @@ import tqdm
 
 import abc
 import typing
+from dataclasses import dataclass, asdict
+from typing import Dict, Any
+
+
+@dataclass
+class MetricsStatusMap:
+    f1_score: float
+    accuracy: float
+    precision: float
+    recall: float
+    confusion_matrix: np.ndarray
+
+    @staticmethod
+    def create_metrics(f1_score: float, accuracy: float, precision: float, recall: float,
+                       confusion_matrix: np.ndarray) -> Dict[str, Any]:
+        metrics = MetricsStatusMap(
+            f1_score=f1_score,
+            accuracy=accuracy,
+            precision=precision,
+            recall=recall,
+            confusion_matrix=confusion_matrix
+        )
+        return asdict(metrics)
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]):
+        return cls(
+            f1_score=data["f1_score"],
+            accuracy=data["accuracy"],
+            precision=data["precision"],
+            recall=data["recall"],
+            confusion_matrix=np.array(data["confusion_matrix"])
+        )
+
+    def copy_from(self, other: "MetricsStatusMap"):
+        self.f1_score = other.f1_score
+        self.accuracy = other.accuracy
+        self.precision = other.precision
+        self.recall = other.recall
+        self.confusion_matrix = np.copy(other.confusion_matrix)
+
+    def to_dict(self) -> Dict[str, Any]:
+        return asdict(self)
+
+    def __str__(self):
+        return (f"MetricsStatusMap(f1_score={self.f1_score}, accuracy={self.accuracy}, "
+                f"precision={self.precision}, recall={self.recall}, "
+                f"confusion_matrix=\n{self.confusion_matrix})")
 
 
 class ClassifierTester(abc.ABC):
@@ -68,13 +116,13 @@ class ClassifierTester(abc.ABC):
             self.confusion_matrix_ is not None,
         ]):
             raise ValueError("None metrics exist, use calculate_all_metrics() before calling status_map")
-        return {
-            "f1_score": self.f1_score_,
-            "accuracy": self.accuracy_,
-            "precision": self.precision_,
-            "recall": self.recall_,
-            "confusion_matrix": self.confusion_matrix_,
-        }
+        return MetricsStatusMap.create_metrics(
+            f1_score=self.f1_score_,
+            accuracy=self.accuracy_,
+            precision=self.precision_,
+            recall=self.recall_,
+            confusion_matrix=self.confusion_matrix_
+        )
 
     @abc.abstractmethod
     def evaluate_model(self):
