@@ -20,14 +20,14 @@ class MetricsStatusMap:
     @staticmethod
     def create_metrics(f1_score: float, accuracy: float, precision: float, recall: float,
                        confusion_matrix: np.ndarray) -> Dict[str, Any]:
-        metrics = MetricsStatusMap(
+        _me = MetricsStatusMap(
             f1_score=f1_score,
             accuracy=accuracy,
             precision=precision,
             recall=recall,
             confusion_matrix=confusion_matrix
         )
-        return asdict(metrics)
+        return asdict(_me)
 
     @classmethod
     def from_dict(cls, data: Dict[str, Any]):
