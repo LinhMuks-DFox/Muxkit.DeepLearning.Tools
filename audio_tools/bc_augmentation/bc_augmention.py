@@ -83,14 +83,18 @@ def mix_sounds(sound1, sound2, r, fs, device='cpu'):
     return mixed_sound
 
 
-class BCAugmentor:
+class BCAugmentor(torch.nn.Module):
     def __init__(self, sample_rate, device='cpu'):
         self.sample_rate = sample_rate
         self.device = device
 
+    @torch.no_grad
     def mix_sounds(self, sound1, sound2, r):
         gain1 = compute_gain(sound1, self.sample_rate, device=self.device).max()
         gain2 = compute_gain(sound2, self.sample_rate, device=self.device).max()
         t = 1.0 / (1 + torch.pow(10, (gain1 - gain2) / 20.0) * (1 - r) / r)
         mixed_sound = (sound1 * t + sound2 * (1 - t)) / torch.sqrt(t ** 2 + (1 - t) ** 2)
         return mixed_sound
+
+    def forward(self, sound1, sound2, r):
+        return self.mix_sounds(sound1, sound2, r)
