@@ -5,6 +5,7 @@ from typing import Union, List, Optional, Tuple
 import numpy as np
 import torch
 
+
 def create_mask(size: Union[torch.Tensor, torch.Size, List[int]],
                 mask_rate: float = 0.5) -> torch.Tensor:
     mask = torch.randn(*size) > mask_rate
@@ -61,6 +62,7 @@ def tensor_masking(tensor_to_mask: torch.Tensor,
     return torch.tensor(np.where(mask, tensor_to_mask.numpy(), 0)), \
         torch.tensor(np.where(~mask, tensor_to_mask.numpy(), 0)), mask
 
+
 class TimeSequenceLengthFixer(torch.nn.Module):
     """
     Fix the length of time sequence.
@@ -81,7 +83,7 @@ class TimeSequenceLengthFixer(torch.nn.Module):
         if mode not in self._FIX_MODE:
             raise ValueError(f"Invalid mode:{mode}, mode shall be {self._FIX_MODE}")
         self.mode_ = mode
-        self.fixed_length = fixed_length * sample_rate
+        self.fixed_length = int(fixed_length * sample_rate)
 
     def forward(self, audio_data: torch.Tensor) -> torch.Tensor:
         if self.mode_ in {"r", "random", "random-timezone"}:
