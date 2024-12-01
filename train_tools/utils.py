@@ -36,5 +36,5 @@ def set_manual_seed(seed: int) -> None:
     if torch.has_mps:
         # Currently, no separate manual seed API for MPS
         pass
-    if torch.has_cuda and hasattr(torch.cuda, 'rocm'):
+    if torch.has_cuda and torch.backends.cuda.is_built():
         torch.cuda.manual_seed(seed)  # Apply to ROCm if CUDA is using AMD backend.
