@@ -33,7 +33,7 @@ class CacheableDataset(data.Dataset):
         x, y = self.dataset[idx]
         if len(self.cache) < self.max_cache_size:
             self.cache[idx] = (x.detach().cpu().clone(), y.clone().detach().cpu().clone())
-        return x, y
+        return x.to(self.device), y.to(self.device)
 
     def __str__(self) -> str:
         """
