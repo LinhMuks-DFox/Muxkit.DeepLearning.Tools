@@ -1,27 +1,3 @@
-'''
-This module provides utility functions for Between-Class (BC) augmentation,
-as described in the paper "Learning from Between-Class Examples for Deep Sound Recognition".
-
-Key formulas:
-1. **Mixed Audio Formula**:
-   Given two audio samples \( x_1 \) and \( x_2 \) and a random mixing ratio \( r \), the mixed audio \( x_{mix} \) is calculated as:
-   \[
-   x_{mix} = \frac{r \cdot x_1 + (1 - r) \cdot x_2}{\sqrt{r^2 + (1 - r)^2}}
-   \]
-
-2. **Gain Adjustment**:
-   To adjust for perceptual loudness, the gain-adjusted mixing coefficient \( p \) is computed using the gains \( G_1 \) and \( G_2 \) of \( x_1 \) and \( x_2 \):
-   \[
-   p = \frac{1}{1 + 10^{(G_1 - G_2)/20} \cdot \frac{1 - r}{r}}
-   \]
-   The adjusted mixed audio formula then becomes:
-   \[
-   x_{mix} = \frac{p \cdot x_1 + (1 - p) \cdot x_2}{\sqrt{p^2 + (1 - p)^2}}
-   \]
-"""
-
-'''
-
 import torch
 
 
@@ -44,21 +20,18 @@ def compute_gain(sound: torch.Tensor, fs, min_db=-80.0, mode='A_weighting', devi
     n_fft = 2048 if fs in [16000, 20000] else 4096
     stride = n_fft // 2
 
-    # 检查输入音频格式
-    if sound.ndim >= 2:
-        assert sound.shape[-2] == 1, "Currently, only support mono-track audio"
     length = sound.shape[-1]
 
     # 将音频分块
     num_segments = (length - n_fft) // stride + 1  # 计算总分段数
     frames = torch.as_strided(
         sound,
-        size=(num_segments, n_fft),
-        stride=(stride * sound.stride(-1), sound.stride(-1))
+        size=(sound.shape[0], num_segments, n_fft),
+        stride=(sound.stride(0), stride * sound.stride(-1), sound.stride(-1))
     ).to(device)
 
     if mode == 'A_weighting':
-        windowed_frames = frames * torch.hann_window(n_fft, device=device)  # 应用窗函数
+        windowed_frames = frames * torch.hann_window(n_fft, device=device).view(1, 1, n_fft)  # 应用窗函数
         spec = torch.fft.rfft(windowed_frames)  # 对所有片段同时执行FFT
         power_spec = torch.abs(spec) ** 2
         a_weighted_spec = power_spec * torch.pow(10, a_weight(fs, n_fft, device=device) / 10)
@@ -75,11 +48,18 @@ def compute_gain(sound: torch.Tensor, fs, min_db=-80.0, mode='A_weighting', devi
 
 
 def mix_sounds(sound1, sound2, r, fs, device='cpu'):
-    """Mix two audio signals with gain adjustment for perceptual consistency."""
-    gain1 = compute_gain(sound1, fs, device=device).max()
-    gain2 = compute_gain(sound2, fs, device=device).max()
-    t = 1.0 / (1 + torch.pow(10, (gain1 - gain2) / 20.0) * (1 - r) / r)
+    """Mix two multi-channel audio signals channel-wise with gain adjustment for perceptual consistency."""
+    assert sound1.shape == sound2.shape, "Input sounds must have the same shape [C, T]"
+    
+    gain1 = compute_gain(sound1, fs, device=device)  # shape: [C, NumFrames]
+    gain2 = compute_gain(sound2, fs, device=device)  # shape: [C, NumFrames]
+    
+    gain1_max = gain1.max(dim=-1, keepdim=True)[0]  # shape: [C, 1]
+    gain2_max = gain2.max(dim=-1, keepdim=True)[0]  # shape: [C, 1]
+
+    t = 1.0 / (1 + torch.pow(10, (gain1_max - gain2_max) / 20.0) * (1 - r) / r)  # shape: [C, 1]
     mixed_sound = (sound1 * t + sound2 * (1 - t)) / torch.sqrt(t ** 2 + (1 - t) ** 2)
+    
     return mixed_sound
 
 
@@ -90,10 +70,15 @@ class BCAugmentor(torch.nn.Module):
 
     @torch.no_grad
     def mix_sounds(self, sound1, sound2, r):
-        gain1 = compute_gain(sound1, self.sample_rate, device=self.device).max()
-        gain2 = compute_gain(sound2, self.sample_rate, device=self.device).max()
-        t = 1.0 / (1 + torch.pow(10, (gain1 - gain2) / 20.0) * (1 - r) / r)
+        gain1 = compute_gain(sound1, self.sample_rate, device=self.device)  # shape: [C, NumFrames]
+        gain2 = compute_gain(sound2, self.sample_rate, device=self.device)  # shape: [C, NumFrames]
+        
+        gain1_max = gain1.max(dim=-1, keepdim=True)[0]  # shape: [C, 1]
+        gain2_max = gain2.max(dim=-1, keepdim=True)[0]  # shape: [C, 1]
+
+        t = 1.0 / (1 + torch.pow(10, (gain1_max - gain2_max) / 20.0) * (1 - r) / r).view(-1, 1, 1)  # shape: [C, 1, 1]
         mixed_sound = (sound1 * t + sound2 * (1 - t)) / torch.sqrt(t ** 2 + (1 - t) ** 2)
+        
         return mixed_sound
 
     def forward(self, sound1, sound2, r):
