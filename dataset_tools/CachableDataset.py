@@ -1,5 +1,5 @@
 from multiprocessing import Manager
-
+import torch
 import torch.utils.data as data
 
 
@@ -26,13 +26,14 @@ class CacheableDataset(data.Dataset):
     def __len__(self) -> int:
         return len(self.dataset)
 
+    @torch.no_grad()
     def __getitem__(self, idx) -> tuple:
         if idx in self.cache:
             x, y = self.cache[idx]
             return x.to(self.device), y.to(self.device)
         x, y = self.dataset[idx]
         if len(self.cache) < self.max_cache_size:
-            self.cache[idx] = (x.detach().cpu().clone(), y.clone().detach().cpu().clone())
+            self.cache[idx] = (x.cpu().clone(), y.cpu().clone())
         return x.to(self.device), y.to(self.device)
 
     def __str__(self) -> str:
