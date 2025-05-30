@@ -53,7 +53,6 @@ class BCLearningDataset(Dataset):
             label2 = torch.eye(self.num_classes, device=self.device)[label2]
 
         r = torch.rand(1, device=label1.device)  # Adjust r to match the number of channels
-        exit(0)
         mixed_sound = mix_sounds(sound1, sound2, r, self.sample_rate, device=self.device)
         label = label1 * r.squeeze() + label2 * (1 - r.squeeze())  # Adjust label calculation for channels
 
