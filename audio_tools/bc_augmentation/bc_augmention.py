@@ -50,13 +50,16 @@ def compute_gain(sound: torch.Tensor, fs, min_db=-80.0, mode='A_weighting', devi
 def mix_sounds(sound1, sound2, r, fs, device='cpu'):
     """Mix two multi-channel audio signals channel-wise with gain adjustment for perceptual consistency."""
     assert sound1.shape == sound2.shape, "Input sounds must have the same shape [C, T]"
-    
+    if not (sound1.device == sound2.device == r.device == device):
+        sound1 = sound1.to(device)
+        sound2 = sound2.to(device)
+        r = r.to(device)
+
     gain1 = compute_gain(sound1, fs, device=device)  # shape: [C, NumFrames]
     gain2 = compute_gain(sound2, fs, device=device)  # shape: [C, NumFrames]
     
     gain1_max = gain1.max(dim=-1, keepdim=True)[0]  # shape: [C, 1]
     gain2_max = gain2.max(dim=-1, keepdim=True)[0]  # shape: [C, 1]
-
     t = 1.0 / (1 + torch.pow(10, (gain1_max - gain2_max) / 20.0) * (1 - r) / r)  # shape: [C, 1]
     mixed_sound = (sound1 * t + sound2 * (1 - t)) / torch.sqrt(t ** 2 + (1 - t) ** 2)
     
