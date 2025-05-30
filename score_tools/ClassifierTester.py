@@ -125,7 +125,7 @@ class ClassifierTester(abc.ABC):
         )
 
     @abc.abstractmethod
-    def evaluate_model(self):
+    def evaluate_model(self,data_preprocessor=None) -> typing.Dict:
         pass
 
     @abc.abstractmethod
@@ -155,7 +155,7 @@ class MonoLabelClassificationTester(ClassifierTester):
         return self
 
     @torch.no_grad()
-    def predict_all(self) -> "MonoLabelClassificationTester":
+    def predict_all(self, data_preprocessor=None) -> "MonoLabelClassificationTester":
         if self.dataloader_ is None or self.y_predict_ is None or self.y_true_ is None:
             raise ValueError("dataloader, y_predict, y_true is None, use set_dataloader() before calling predict_all")
         self.model_.eval()
@@ -164,6 +164,8 @@ class MonoLabelClassificationTester(ClassifierTester):
         label: torch.Tensor
         for data, label in tqdm.tqdm(self.dataloader_):
             data = data.to(self.device_)
+            if data_preprocessor is not None:
+                data = data_preprocessor(data)
             label = label.to(self.device_)
             model_out = self.model_(data)
             predicted_y = torch.argmax(model_out, dim=1)
@@ -200,8 +202,8 @@ class MonoLabelClassificationTester(ClassifierTester):
         self.f1_score_ = metrics.f1_score(self.y_true_, self.y_predict_, average="macro", zero_division=0)
         return self
 
-    def evaluate_model(self):
-        self.predict_all()
+    def evaluate_model(self, data_preprocessor=None) -> typing.Dict:
+        self.predict_all(data_preprocessor)
         self.calculate_all_metrics()
         return self.status_map()
 
