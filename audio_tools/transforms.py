@@ -6,6 +6,81 @@ import numpy as np
 import torch
 
 
+class TimeSequenceLengthFixer(torch.nn.Module):
+    """
+    Fix the length of time sequence.
+    >>> import torchaudio
+    >>> wav_form, sample_rate = torchaudio.load("test.wav")
+    >>> fixer = TimeSequenceLengthFixer(5, sample_rate)
+    >>> fixed_wav_form = fixer(wav_form)
+    >>> fixed_wav_form.shape
+    """
+    _FIX_MODE = {
+        "random", "r", "random-timezone",
+        "s", "start",
+        "e", "end"
+    }
+
+    def __init__(self, fixed_length: int, sample_rate: int, mode="r"):
+        super().__init__()
+        if mode not in self._FIX_MODE:
+            raise ValueError(f"Invalid mode:{mode}, mode shall be {self._FIX_MODE}")
+        self.mode_ = mode
+        self.fixed_length = int(fixed_length * sample_rate)
+
+    def forward(self, audio_data: torch.Tensor) -> torch.Tensor:
+        if self.mode_ in {"r", "random", "random-timezone"}:
+            if audio_data.shape[1] < self.fixed_length:
+                return self.select_time_zone(audio_data, 0)[0]
+            return self.select_time_zone(audio_data,
+                                         random.randint(0, audio_data.shape[1] - self.fixed_length)
+                                         )[0]
+        if self.mode_ in {"s", "start"}:
+            return self.select_time_zone(audio_data, 0)[0]
+        if self.mode_ in {"e", "end"}:
+            return self.select_time_zone(audio_data, audio_data.shape[1] - self.fixed_length)[0]
+        else:
+            raise ValueError(f"Invalid mode:{self.mode_}")
+
+    def select_time_zone(self, audio_data: torch.Tensor, start_time: int):
+        if audio_data.shape[1] < self.fixed_length:
+            audio_data = torch.nn.functional.pad(audio_data,
+                                                 (0, self.fixed_length - audio_data.shape[1]))
+        return audio_data[..., start_time: start_time + self.fixed_length], start_time
+
+
+class SoundTrackSelector(torch.nn.Module):
+    """
+    Select one track from stereo audio.
+    >>> import torchaudio
+    >>> wav_form, sample_rate = torchaudio.load("test.wav") # where test.wav is a stereo audio
+    >>> selector = SoundTrackSelector("left") # see _VALID_TRACKS for valid tracks
+    >>> selected_wav_form = selector(wav_form)
+    >>> selected_wav_form.shape
+    """
+    _VALID_TRACKS = {"all", "left", "right", "mix", "random-single", "random"}
+    _MOD_SELECT_KERNEL = {
+        "all": lambda x: x,
+        "left": lambda x: x[0].unsqueeze(0),
+        "right": lambda x: x[1].unsqueeze(0),
+        "mix": lambda x: x.mean(dim=0).unsqueeze(0),
+    }
+
+    def __init__(self, mode: str):
+        super().__init__()
+        if mode not in self._VALID_TRACKS:
+            raise ValueError(f"mode must be one of {', '.join(self._VALID_TRACKS)}, but got {mode}")
+        if mode == "random":
+            mode = random.choice(["all", "left", "right", "mix"])
+        if mode == "random-single":
+            mode = random.choice(["left", "right", "mix"])
+        self.select_mode = mode
+        self.select_kernel = self._MOD_SELECT_KERNEL[mode]
+
+    def forward(self, audio_data: torch.Tensor) -> torch.Tensor:
+        return self.select_kernel(audio_data)
+
+
 def create_mask(size: Union[torch.Tensor, torch.Size, List[int]],
                 mask_rate: float = 0.5) -> torch.Tensor:
     mask = torch.randn(*size) > mask_rate
@@ -61,81 +136,6 @@ def tensor_masking(tensor_to_mask: torch.Tensor,
         mask = create_mask(tensor_to_mask.shape, mask_rate)
     return torch.tensor(np.where(mask, tensor_to_mask.numpy(), 0)), \
         torch.tensor(np.where(~mask, tensor_to_mask.numpy(), 0)), mask
-
-
-class TimeSequenceLengthFixer(torch.nn.Module):
-    """
-    Fix the length of time sequence.
-    >>> import torchaudio
-    >>> wav_form, sample_rate = torchaudio.load("test.wav")
-    >>> fixer = TimeSequenceLengthFixer(5, sample_rate)
-    >>> fixed_wav_form = fixer(wav_form)
-    >>> fixed_wav_form.shape
-    """
-    _FIX_MODE = {
-        "random", "r", "random-timezone",
-        "s", "start",
-        "e", "end"
-    }
-
-    def __init__(self, fixed_length: int, sample_rate: int, mode="r"):
-        super().__init__()
-        if mode not in self._FIX_MODE:
-            raise ValueError(f"Invalid mode:{mode}, mode shall be {self._FIX_MODE}")
-        self.mode_ = mode
-        self.fixed_length = int(fixed_length * sample_rate)
-
-    def forward(self, audio_data: torch.Tensor) -> torch.Tensor:
-        if self.mode_ in {"r", "random", "random-timezone"}:
-            if audio_data.shape[1] < self.fixed_length:
-                return self.select_time_zone(audio_data, 0)[0]
-            return self.select_time_zone(audio_data,
-                                         random.randint(0, audio_data.shape[1] - self.fixed_length)
-                                         )[0]
-        if self.mode_ in {"s", "start"}:
-            return self.select_time_zone(audio_data, 0)[0]
-        if self.mode_ in {"e", "end"}:
-            return self.select_time_zone(audio_data, audio_data.shape[1] - self.fixed_length)[0]
-        else:
-            raise ValueError(f"Invalid mode:{self.mode_}")
-
-    def select_time_zone(self, audio_data: torch.Tensor, start_time: int):
-        if audio_data.shape[1] < self.fixed_length:
-            audio_data = torch.nn.functional.pad(audio_data,
-                                                 (0, self.fixed_length - audio_data.shape[1]))
-        return audio_data[:, start_time: start_time + self.fixed_length], start_time
-
-
-class SoundTrackSelector(torch.nn.Module):
-    """
-    Select one track from stereo audio.
-    >>> import torchaudio
-    >>> wav_form, sample_rate = torchaudio.load("test.wav") # where test.wav is a stereo audio
-    >>> selector = SoundTrackSelector("left") # see _VALID_TRACKS for valid tracks
-    >>> selected_wav_form = selector(wav_form)
-    >>> selected_wav_form.shape
-    """
-    _VALID_TRACKS = {"all", "left", "right", "mix", "random-single", "random"}
-    _MOD_SELECT_KERNEL = {
-        "all": lambda x: x,
-        "left": lambda x: x[0].unsqueeze(0),
-        "right": lambda x: x[1].unsqueeze(0),
-        "mix": lambda x: x.mean(dim=0).unsqueeze(0),
-    }
-
-    def __init__(self, mode: str):
-        super().__init__()
-        if mode not in self._VALID_TRACKS:
-            raise ValueError(f"mode must be one of {', '.join(self._VALID_TRACKS)}, but got {mode}")
-        if mode == "random":
-            mode = random.choice(["all", "left", "right", "mix"])
-        if mode == "random-single":
-            mode = random.choice(["left", "right", "mix"])
-        self.select_mode = mode
-        self.select_kernel = self._MOD_SELECT_KERNEL[mode]
-
-    def forward(self, audio_data: torch.Tensor) -> torch.Tensor:
-        return self.select_kernel(audio_data)
 
 
 class TimeSequenceMaskingTransformer(torch.nn.Module):
