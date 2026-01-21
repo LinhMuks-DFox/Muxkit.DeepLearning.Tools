@@ -1,7 +1,7 @@
 import unittest
 import torch
 from ..bc_augmented_dataset import BCLearningDataset
-from ..bc_augmention import mix_sounds, compute_gain
+from ..bc_augmentaion import mix_sounds, compute_gain
 from torch.utils.data import DataLoader
 
 

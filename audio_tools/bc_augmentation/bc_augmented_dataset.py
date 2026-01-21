@@ -15,7 +15,7 @@ Key formulas:
 import torch
 from torch.utils.data import Dataset
 
-from .bc_augmention import mix_sounds
+from .bc_augmentaion import mix_sounds
 
 
 class BCLearningDataset(Dataset):

@@ -1,6 +1,6 @@
 import pathlib
 
-from ..bc_augmention import mix_sounds as my_mix_sounds
+from ..bc_augmentaion import mix_sounds as my_mix_sounds
 import torchaudio
 import unittest
 import torch
