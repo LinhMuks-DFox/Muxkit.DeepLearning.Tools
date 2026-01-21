@@ -2,6 +2,19 @@
 
 This repository provides reusable utilities for audio and vision research.
 
+## Datasets
+- Download policy: prefer external tools (curl/wget). If unavailable, pass `by_internal_downloader=True` to use an internal requests-based downloader.
+- Install dataset extras (gdown/requests/pandas/matplotlib/tqdm):
+  - pip: `pip install ".[datasets]"`
+  - Poetry: `poetry install -E datasets`
+
+Examples
+- HOMULA‑RIR:
+  - External: `HomulaRIR.download("./data/HOMULA-RIR")`
+  - Internal: `HomulaRIR.download("./data/HOMULA-RIR", by_internal_downloader=True, headers={"User-Agent": "..."})`
+- JVS (requires gdown):
+  - `JVSDataset.download("./data/JVS-org/jvs_ver1/")` or `JVSDataset.download_with_gdown("./data/JVS-org/jvs_ver1/")`
+
 ## audio_tools
 
 ### bc_augmentation

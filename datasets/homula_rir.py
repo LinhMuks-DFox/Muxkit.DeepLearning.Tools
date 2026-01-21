@@ -1,6 +1,8 @@
 """
-This script is made for accessing the HOMULA-RIR dataset.
-[A Room Impulse Response Dataset for Teleconferencing and Spatial Audio Applications Acquired Through Higher-Order Microphones and Uniform Linear Microphone Arrays](http://arxiv.org/abs/2402.13896)
+HOMULA-RIR dataset access utilities and Dataset wrapper.
+
+Reference
+- "A Room Impulse Response Dataset for Teleconferencing and Spatial Audio Applications Acquired Through Higher-Order Microphones and Uniform Linear Microphone Arrays" (arXiv:2402.13896)
 """
 
 import os
@@ -9,12 +11,11 @@ import torch
 import torchaudio
 import pandas as pd
 import typing
-import requests
 import zipfile
-from tqdm import tqdm
 import matplotlib.pyplot as plt
+from .base import DownloadMixin, DownloadError
 
-class HomulaRIR(torch.utils.data.Dataset):
+class HomulaRIR(torch.utils.data.Dataset, DownloadMixin):
     
     LINK = "https://zenodo.org/records/10479726/files/HOMULA-RIR.zip?download=1"
     ZIP_NAME = "HOMULA-RIR.zip"
@@ -24,10 +25,11 @@ class HomulaRIR(torch.utils.data.Dataset):
     SOURCES = ["S1", "S2"] # 两个声源
 
     def __init__(self, root_dir: str, download: bool = False):
-        """
+        """Initialize the dataset.
+
         Args:
-            root_dir: 数据集的根目录（包含 'hom', 'ula' 等文件夹的父级目录）
-            download: 如果为 True 且数据不存在，则自动下载
+            root_dir (str): Root folder containing 'hom' and 'ula' subfolders.
+            download (bool): If True and missing, download the archive.
         """
         self.root_dir = root_dir
         
@@ -62,12 +64,12 @@ class HomulaRIR(torch.utils.data.Dataset):
         return self.get_high_order_microphone(meta["row"], meta["col"], meta["source"])
 
     def get_high_order_microphone(self, row: int, col: int, source: str = "S1") -> dict:
-        """
-        获取指定位置的高阶麦克风数据
+        """Load HOM (higher-order microphone) sample at grid position.
+
         Args:
-            row: 1-5
-            col: 1-5
-            source: 'S1' or 'S2'
+            row (int): 1–5 grid row.
+            col (int): 1–5 grid column.
+            source (str): 'S1' or 'S2'.
         """
         # 构建路径
         # 结构: hom/row{r}/rir-{s}-R{r}-HOM{c}.wav
@@ -94,10 +96,7 @@ class HomulaRIR(torch.utils.data.Dataset):
         }
     
     def get_uniform_linear_array(self, source: str = "S1") -> dict:
-        """
-        获取 ULA (64通道) 数据
-        ULA 不在网格中，它是独立的，所以单独写一个方法获取
-        """
+        """Load ULA (64-ch) data. ULA is outside the grid and fetched separately."""
         filename = f"rir_{source}-ULA.wav" if source == "S2" else f"rir-{source}-ULA.wav" # 注意S2文件名里可能有下划线差异，需根据实际文件微调，这里假设格式统一
         # 根据你的 tree，S2 是 rir_S2-ULA.wav (下划线)，S1 是 rir-S1-ULA.wav (连字符)
         # 这是一个常见的数据集命名坑，这里做个自动处理：
@@ -126,9 +125,7 @@ class HomulaRIR(torch.utils.data.Dataset):
         }
     
     def get_room_geom_plot(self, highlight_mic: typing.Optional[typing.List[typing.Tuple[int, int]]] = None):
-        """
-        绘制房间几何图，显示声源和麦克风位置。
-        """
+        """Plot room geometry showing sources and microphone positions."""
         fig, ax = plt.subplots(figsize=(8, 6))
         
         # 1. 绘制声源 (Sources)
@@ -175,48 +172,47 @@ class HomulaRIR(torch.utils.data.Dataset):
 
 
     @staticmethod
-    def download(save_dir, logger=print):
-        """
-        下载并解压数据集 (带完整性检查版)
+    def download(
+        save_dir,
+        logger=print,
+        *,
+        by_internal_downloader: bool = False,
+        headers: typing.Optional[typing.Dict[str, str]] = None,
+        tool_preference: typing.Optional[str] = None,
+        min_bytes: int = 10 * 1024 * 1024,
+    ):
+        """Download and extract the dataset (prefer curl/wget; internal on opt-in).
+
+        When external tools are not available, pass ``by_internal_downloader=True``
+        to use a requests-based downloader. Extra HTTP headers can be provided
+        via ``headers``.
         """
         if not os.path.exists(save_dir):
             os.makedirs(save_dir)
-            
+
         zip_path = os.path.join(save_dir, HomulaRIR.ZIP_NAME)
-        
+
         if os.path.exists(zip_path) and os.path.getsize(zip_path) < 1024 * 1024:
             logger(f"Existing file {HomulaRIR.ZIP_NAME} is too small (corrupted), removing it...")
             os.remove(zip_path)
 
         if not os.path.exists(zip_path):
             logger(f"Downloading from Zenodo to {save_dir}...")
-            response = requests.get(HomulaRIR.LINK, stream=True)
-            
-            if response.status_code != 200:
-                raise RuntimeError(f"Download failed with status code: {response.status_code}")
-
-            total_size = int(response.headers.get('content-length', 0))
-            
-            # 修正点 2: 如果文件太小（比如小于 10MB），说明下的肯定不是数据集，直接报错
-            if total_size < 10 * 1024 * 1024: 
-                err_content = b""
-                for chunk in response.iter_content(chunk_size=1024):
-                    err_content += chunk
-                    if len(err_content) > 200: break
-                raise RuntimeError(f"Download link returned a file that is too small ({total_size} bytes). \nContent preview: {err_content}")
-
-            with open(zip_path, 'wb') as file, tqdm(
-                desc=HomulaRIR.ZIP_NAME,
-                total=total_size,
-                unit='iB',
-                unit_scale=True,
-                unit_divisor=1024,
-            ) as bar:
-                for data in response.iter_content(chunk_size=1024):
-                    size = file.write(data)
-                    bar.update(size)
+            try:
+                HomulaRIR.download_file(
+                    HomulaRIR.LINK,
+                    zip_path,
+                    by_internal_downloader=by_internal_downloader,
+                    headers=headers,
+                    tool_preference=tool_preference,
+                )
+            except DownloadError as e:
+                raise RuntimeError(str(e))
         else:
             logger("Zip file already exists and size looks okay, skipping download.")
+
+        if os.path.getsize(zip_path) < min_bytes:
+            raise RuntimeError(f"Downloaded file too small: {zip_path}")
 
         try:
             with zipfile.ZipFile(zip_path, 'r') as zip_ref:

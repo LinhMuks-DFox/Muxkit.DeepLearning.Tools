@@ -1,8 +1,29 @@
+"""
+Between-Class (BC) Audio Augmentation utilities.
+
+Reference
+- Tokozume et al., 2017. "Between-Class Learning for Image Classification" (arXiv:1711.10282).
+
+This module provides utilities to mix two audio signals with perceptual
+gain compensation (A-weighting) as used in BC augmentation. Names and
+signatures are preserved; only documentation has been clarified.
+"""
+
 import torch
 
 
 def a_weight(fs, n_fft, min_db=-80.0, device='cpu'):
-    """Compute the A-weighting filter for perceptual audio processing."""
+    """Return A-weighting (dB) vector for the given FFT size.
+
+    Args:
+        fs (int): Sampling rate.
+        n_fft (int): FFT size.
+        min_db (float): Lower clamp (dB). Default: -80.0.
+        device (str): Torch device for tensors.
+
+    Returns:
+        Tensor: Shape [n_fft//2+1], A-weighting in dB.
+    """
     freq = torch.linspace(0, fs // 2, n_fft // 2 + 1, device=device)
     freq_sq = freq ** 2
     freq_sq[0] = 1.0  # Prevent division by zero
@@ -16,7 +37,18 @@ def a_weight(fs, n_fft, min_db=-80.0, device='cpu'):
 
 
 def compute_gain(sound: torch.Tensor, fs, min_db=-80.0, mode='A_weighting', device='cpu'):
-    """Compute the gain (sound pressure level) of an audio signal with optimized batch processing."""
+    """Compute segment-wise perceived gain (dB) for an audio tensor.
+
+    Args:
+        sound (Tensor): Audio tensor shaped [..., T] or [C, T].
+        fs (int): Sampling rate.
+        min_db (float): Lower clamp for power before log. Default: -80.0.
+        mode (str): "A_weighting" or "RMSE"-like energy.
+        device (str): Torch device.
+
+    Returns:
+        Tensor: Gain in dB per frame (shape depends on input channels/frames).
+    """
     n_fft = 2048 if fs in [16000, 20000] else 4096
     stride = n_fft // 2
 
@@ -48,7 +80,20 @@ def compute_gain(sound: torch.Tensor, fs, min_db=-80.0, mode='A_weighting', devi
 
 
 def mix_sounds(sound1, sound2, r, fs, device='cpu'):
-    """Mix two multi-channel audio signals channel-wise with gain adjustment for perceptual consistency."""
+    """Perceptually mix two equal-length audio signals.
+
+    Applies gain-aware mixing (A-weighted) with normalization.
+
+    Args:
+        sound1 (Tensor): First audio, shape [C, T] or [T].
+        sound2 (Tensor): Second audio, same shape as ``sound1``.
+        r (Tensor|float): Mix ratio in [0,1].
+        fs (int): Sampling rate.
+        device (str): Torch device.
+
+    Returns:
+        Tensor: Mixed audio, same shape as inputs.
+    """
     assert sound1.shape == sound2.shape, "Input sounds must have the same shape [C, T]"
     if not (sound1.device == sound2.device == r.device == device):
         sound1 = sound1.to(device)
@@ -67,12 +112,15 @@ def mix_sounds(sound1, sound2, r, fs, device='cpu'):
 
 
 class BCAugmentor(torch.nn.Module):
+    """Module wrapper for BC mixing with a fixed sample rate."""
+
     def __init__(self, sample_rate, device='cpu'):
         self.sample_rate = sample_rate
         self.device = device
 
     @torch.no_grad
     def mix_sounds(self, sound1, sound2, r):
+        """Mix two tensors using the same rule as :func:`mix_sounds`."""
         gain1 = compute_gain(sound1, self.sample_rate, device=self.device)  # shape: [C, NumFrames]
         gain2 = compute_gain(sound2, self.sample_rate, device=self.device)  # shape: [C, NumFrames]
         
@@ -85,4 +133,5 @@ class BCAugmentor(torch.nn.Module):
         return mixed_sound
 
     def forward(self, sound1, sound2, r):
+        """Alias of :meth:`mix_sounds`."""
         return self.mix_sounds(sound1, sound2, r)

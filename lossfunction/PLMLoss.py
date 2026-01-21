@@ -1,3 +1,14 @@
+"""
+Partial Label Masking Loss (PLM)
+
+Reference
+- Kevin Duarte et al., 2021. "PLM: Partial Label Masking for Imbalanced Multi-label Classification" (CVPR 2021).
+
+This module provides an implementation of PLM that adaptively masks labels based on
+observed label distributions during training. The implementation preserves the original
+behavior; only documentation has been clarified for maintainability.
+"""
+
 import numpy as np
 import torch
 import torch.nn as nn
@@ -5,60 +16,24 @@ import torch.nn.functional as F
 
 
 class PLMLoss(nn.Module):
+    """Partial Label Masking loss.
+
+    Implements PLM for imbalanced multi-label classification by stochastically
+    masking labels according to class-wise positive ratios.
+
+    Args:
+        label_distribution (Tensor): Class-wise positive ratios (shape: [C]).
+        lambda_rate (float): Update rate for the ideal ratio. Default: 0.1.
+        hist_bins (int): Number of bins for probability histograms. Default: 10.
+        loss_kernel (str): One of {"bce", "cross_entropy"}. Default: "bce".
+
+    Raises:
+        TypeError: If ``loss_kernel`` is not one of the supported values.
+
+    Notes:
+        Call ``update_ratios()`` periodically (e.g., per epoch) to refresh the
+        class-wise ideal positive ratios using stored histograms.
     """
-        Partial Label Masking Loss (PLMLoss) function:
-
-        This class implements the Partial Label Masking (PLM) loss as proposed in the paper 
-        "PLM: Partial Label Masking for Imbalanced Multi-label Classification" by Kevin Duarte et al.
-        The PLM loss addresses the problem of imbalanced multi-label classification by adaptively 
-        masking labels based on the class distributions and their imbalance.
-
-        Parameters:
-            label_distribution (torch.Tensor): A tensor representing the distribution of positive labels 
-                                            for each class, which is used to adjust the mask.
-            lambda_rate (float): The learning rate to update the positive ratio during the training 
-                                process. Default is 0.1.
-            hist_bins (int): The number of bins used to create histograms for estimating label distribution.
-                            Default is 10.
-            loss_kernel (str): The loss function to use, either "bce" (binary cross-entropy) or "cross_entropy". 
-                            Default is "bce".
-
-        Raises:
-            TypeError: If the loss kernel is not "bce" or "cross_entropy".
-
-        Returns:
-            A scalar loss value after applying the Partial Label Masking (PLM) method.
-
-        Functions:
-            forward(y_pred, y_true):
-                Computes the masked loss by applying the PLM mechanism on the predicted and true labels.
-            
-            generate_mask(y_true):
-                Generates a mask based on the ratio of positive and negative samples in relation to 
-                their ideal distributions. The mask is used to weight the loss.
-            
-            update_ratios():
-                Updates the positive ratios based on the difference between the predicted and true 
-                label distributions, adjusting the imbalance.
-            
-            _clear_probability_histogram():
-                Resets the histograms that track the true and predicted label distributions.
-            
-            _compute_probabilities_difference():
-                Computes the difference between true and predicted probabilities using KL divergence.
-            
-            _compute_kl_divergence(hist_true, hist_pred):
-                Calculates the Kullback-Leibler divergence between two histograms, normalized to form 
-                probability distributions.
-
-            _compute_histogram(y_true, y_pred):
-                Computes histograms for positive and negative samples, for both true and predicted labels, 
-                across all classes.
-
-            __str__():
-                Provides a string representation of the PLMLoss object, including the lambda rate, number of bins, 
-                and the loss function used.
-        """
 
     _LOSS_KERNEL_ = {
         "bce": F.binary_cross_entropy_with_logits,

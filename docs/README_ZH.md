@@ -2,6 +2,19 @@
 
 该仓库提供在音频和视觉研究中可复用的工具代码。
 
+## 数据集（datasets）
+- 下载策略：优先使用外部工具（curl/wget）。当系统无外部工具时，显式传入 `by_internal_downloader=True` 使用基于 requests 的内部下载，`headers` 可自定义 HTTP 头。
+- 依赖安装（用于数据集下载与可视化）：
+  - pip：`pip install ".[datasets]"`
+  - Poetry：`poetry install -E datasets`
+
+示例
+- HOMULA‑RIR：
+  - 外部：`HomulaRIR.download("./data/HOMULA-RIR")`
+  - 内部：`HomulaRIR.download("./data/HOMULA-RIR", by_internal_downloader=True, headers={"User-Agent": "..."})`
+- JVS（需要 gdown）：
+  - `JVSDataset.download("./data/JVS-org/jvs_ver1/")` 或 `JVSDataset.download_with_gdown("./data/JVS-org/jvs_ver1/")`
+
 ## audio_tools
 
 ### bc_augmentation

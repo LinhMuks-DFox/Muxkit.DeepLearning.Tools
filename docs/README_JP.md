@@ -2,6 +2,19 @@
 
 このリポジトリは、音声および画像研究で再利用できるユーティリティ群を提供します。
 
+## データセット（datasets）
+- ダウンロード方針：外部ツール（curl/wget）を優先。利用不可の場合は `by_internal_downloader=True` を渡して requests ベースの内部ダウンローダーを使用します。`headers` で HTTP ヘッダを指定可能。
+- 依存のインストール（データセット用途）：
+  - pip：`pip install ".[datasets]"`
+  - Poetry：`poetry install -E datasets`
+
+例
+- HOMULA‑RIR：
+  - 外部：`HomulaRIR.download("./data/HOMULA-RIR")`
+  - 内部：`HomulaRIR.download("./data/HOMULA-RIR", by_internal_downloader=True, headers={"User-Agent": "..."})`
+- JVS（gdown 必須）：
+  - `JVSDataset.download("./data/JVS-org/jvs_ver1/")` または `JVSDataset.download_with_gdown("./data/JVS-org/jvs_ver1/")`
+
 ## audio_tools
 
 ### bc_augmentation

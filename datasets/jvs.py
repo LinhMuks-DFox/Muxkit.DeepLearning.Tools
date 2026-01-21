@@ -1,3 +1,10 @@
+"""
+JVS (Japanese Versatile Speech) dataset utilities and Dataset wrapper.
+
+Reference: JVS corpus – free Japanese multi-speaker voice corpus.
+https://arxiv.org/abs/1908.06248
+"""
+
 import os
 import pathlib
 import typing
@@ -312,41 +319,39 @@ class JVSDataset(Dataset):
         return Subset(self, indices)
 
     @staticmethod
-    def download(root_dir: typing.Union[str, pathlib.Path], logger: typing.Callable = print):
-        """
-        Downloads and extracts the JVS dataset from Google Drive.
+    def download_with_gdown(root_dir: typing.Union[str, pathlib.Path], logger: typing.Callable = print):
+        """Download JVS via gdown and extract.
 
-        Args:
-            root_dir (str | Path): The directory where the dataset will be saved.
-            logger (Callable, optional): A logging function (e.g., print). Defaults to print.
-
-        Raises:
-            ImportError: If 'gdown' is not installed.
+        Raises ImportError if gdown is not available.
         """
         try:
-            import gdown
+            import gdown  # type: ignore
             import zipfile
-        except ImportError:
-            raise ImportError("Download requires 'gdown'. Please install it via: pip install gdown")
+        except ImportError as e:
+            raise ImportError("JVSDataset download requires 'gdown'. Install via: pip install gdown") from e
 
         root = pathlib.Path(root_dir)
         root.mkdir(parents=True, exist_ok=True)
-        
+
         if (root / "jvs001").exists():
             logger("JVS dataset appears to exist. Skipping download.")
             return
 
         url = f'https://drive.google.com/uc?id={JVSDataset.GDRIVE_ID}'
         output = root / "jvs_ver1.zip"
-        
-        logger(f"Downloading JVS dataset to {output}...")
+
+        logger(f"Downloading JVS dataset to {output} via gdown...")
         gdown.download(url, str(output), quiet=False)
-        
+
         logger("Extracting archive...")
         with zipfile.ZipFile(output, 'r') as zip_ref:
             zip_ref.extractall(root)
-        
         logger("Download and extraction complete.")
+
+    @staticmethod
+    def download(root_dir: typing.Union[str, pathlib.Path], logger: typing.Callable = print):
+        """Wrapper that requires gdown. See ``download_with_gdown``."""
+        JVSDataset.download_with_gdown(root_dir, logger)
 
 
 if __name__ == "__main__":

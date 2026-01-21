@@ -1,3 +1,10 @@
+"""
+Audio utility helpers used across training and data pipelines.
+
+Currently includes length adjustment for tensors representing audio
+waveforms. Behaviors unchanged; documentation clarified.
+"""
+
 import torch
 
 from ..utl import api_tags as tags
@@ -5,15 +12,14 @@ from ..utl import api_tags as tags
 
 @tags.stable_api
 def fix_length(audio_data: torch.Tensor, sample_length: int) -> torch.Tensor:
-    """
-    Adjust the length of the input audio data to match the given sample length.
-    
+    """Pad or truncate an audio tensor on the time axis to ``sample_length``.
+
     Args:
-        audio_data (torch.Tensor): Input audio tensor.
-        sample_length (int): The target sample length.
-    
+        audio_data (Tensor): Shape [..., T] or [C, T].
+        sample_length (int): Target length along the last dimension.
+
     Returns:
-        torch.Tensor: Adjusted audio data, either padded or truncated to the specified length.
+        Tensor: Tensor with last dimension exactly ``sample_length``.
     """
     current_length = audio_data.shape[-1]
     if current_length > sample_length:
@@ -22,4 +28,3 @@ def fix_length(audio_data: torch.Tensor, sample_length: int) -> torch.Tensor:
         padding = sample_length - current_length
         audio_data = torch.nn.functional.pad(audio_data, (0, padding))
     return audio_data
-

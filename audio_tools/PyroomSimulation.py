@@ -13,23 +13,19 @@ PyRoomAcousticRoomMaker = typing.Callable[[], pyroomacoustics.Room]
 
 @tags.stable_api
 class RoomSimulation(nn.Module):
-    """
-    A PyTorch module to apply Room Impulse Response (RIR) convolution to an audio sample 
-    using precomputed RIR kernels from PyRoomAcoustics and torchaudio for GPU/CPU accelerated convolution.
+    """Apply PyRoomAcoustics RIRs via torchaudio convolution.
 
     Args:
-        make_room (Callable): A callable that returns a computable PyRoomAcoustics Room object.
-        n_mic (int): The number of microphones in the room setup.
+        make_room (Callable): Returns a configured ``pyroomacoustics.Room``.
+        n_mic (int): Number of microphones.
 
-    Forward Input:
-        audio (torch.Tensor): A tensor representing the audio input to apply the RIR. Shape: [n_channel, n_sample].
-
-    Forward Output:
-        torch.Tensor: A tensor after applying RIR convolution, with shape [n_mic, n_sample].
+    Forward:
+        audio (Tensor): Shape [C, T]
+        -> Tensor: Shape [n_mic, T]
 
     Notes:
-        - The RIR kernels are stored as non-updatable torch tensors.
-        - Convolution can be performed on both GPU and CPU.
+        - RIR kernels are stored as non-trainable parameters.
+        - Works on CPU and GPU.
     """
 
     def __init__(self, make_room, n_mic):
@@ -40,17 +36,10 @@ class RoomSimulation(nn.Module):
 
     @staticmethod
     def __init_rir(make_room):
-        """
-        Initializes the RIR kernels from the given room configuration.
-
-        Args:
-            make_room (Callable): A function that returns a PyRoomAcoustics Room object.
-
-        Returns:
-            torch.Tensor: A tensor containing the RIR kernels for each microphone.
+        """Initialize RIR kernels from the provided room configuration.
 
         Raises:
-            ValueError: If the RIR computation returns incomplete or empty data.
+            ValueError: If computed RIR data is empty or incomplete.
         """
         room = make_room()
         room.compute_rir()
@@ -63,15 +52,7 @@ class RoomSimulation(nn.Module):
         return torch.from_numpy(padded_rirs)
 
     def forward(self, audio):
-        """
-        Applies the RIR convolution to the input audio using torchaudio's GPU-accelerated convolution.
-
-        Args:
-            audio (torch.Tensor): A tensor representing the audio input, with shape [n_channel, n_sample].
-
-        Returns:
-            torch.Tensor: The resulting audio tensor after applying the RIR convolution. Shape: [n_mic, n_sample].
-        """
+        """Convolve waveform with stored RIR kernels using torchaudio."""
         return self.convolver(audio, self.rir)
 
 

@@ -1,3 +1,10 @@
+"""
+Common audio transforms: crop/fix length, channel selection, and masking helpers.
+
+These utilities are used in training pipelines. Behavior remains unchanged;
+docstrings now clarify inputs/outputs and usage examples.
+"""
+
 import random
 import torchvision.transforms as vision_transforms
 import torchvision.transforms.functional as vision_transform_fnc
@@ -7,13 +14,14 @@ import torch
 
 
 class TimeSequenceLengthFixer(torch.nn.Module):
-    """
-    Fix the length of time sequence.
-    >>> import torchaudio
-    >>> wav_form, sample_rate = torchaudio.load("test.wav")
-    >>> fixer = TimeSequenceLengthFixer(5, sample_rate)
-    >>> fixed_wav_form = fixer(wav_form)
-    >>> fixed_wav_form.shape
+    """Fix the waveform length to a target duration.
+
+    Example:
+        >>> import torchaudio
+        >>> wav_form, sample_rate = torchaudio.load("test.wav")
+        >>> fixer = TimeSequenceLengthFixer(5, sample_rate)
+        >>> fixed_wav_form = fixer(wav_form)
+        >>> fixed_wav_form.shape
     """
     _FIX_MODE = {
         "random", "r", "random-timezone",
@@ -29,6 +37,13 @@ class TimeSequenceLengthFixer(torch.nn.Module):
         self.fixed_length = int(fixed_length * sample_rate)
 
     def forward(self, audio_data: torch.Tensor) -> torch.Tensor:
+        """Return a slice or padded waveform of exact target length.
+
+        Args:
+            audio_data (Tensor): Shape [C, T].
+        Returns:
+            Tensor: Shape [C, fixed_length*sample_rate].
+        """
         if self.mode_ in {"r", "random", "random-timezone"}:
             if audio_data.shape[1] < self.fixed_length:
                 return self.select_time_zone(audio_data, 0)[0]
@@ -43,6 +58,7 @@ class TimeSequenceLengthFixer(torch.nn.Module):
             raise ValueError(f"Invalid mode:{self.mode_}")
 
     def select_time_zone(self, audio_data: torch.Tensor, start_time: int):
+        """Helper to slice at ``start_time`` with right padding when needed."""
         if audio_data.shape[1] < self.fixed_length:
             audio_data = torch.nn.functional.pad(audio_data,
                                                  (0, self.fixed_length - audio_data.shape[1]))
@@ -50,13 +66,13 @@ class TimeSequenceLengthFixer(torch.nn.Module):
 
 
 class SoundTrackSelector(torch.nn.Module):
-    """
-    Select one track from stereo audio.
-    >>> import torchaudio
-    >>> wav_form, sample_rate = torchaudio.load("test.wav") # where test.wav is a stereo audio
-    >>> selector = SoundTrackSelector("left") # see _VALID_TRACKS for valid tracks
-    >>> selected_wav_form = selector(wav_form)
-    >>> selected_wav_form.shape
+    """Select or mix channels from stereo/multi-channel audio.
+
+    Example:
+        >>> import torchaudio
+        >>> wav_form, sample_rate = torchaudio.load("test.wav")
+        >>> selector = SoundTrackSelector("left")
+        >>> selected_wav_form = selector(wav_form)
     """
     _VALID_TRACKS = {"all", "left", "right", "mix", "random-single", "random"}
     _MOD_SELECT_KERNEL = {
@@ -83,6 +99,12 @@ class SoundTrackSelector(torch.nn.Module):
 
 def create_mask(size: Union[torch.Tensor, torch.Size, List[int]],
                 mask_rate: float = 0.5) -> torch.Tensor:
+    """Return a random boolean mask with given mask rate.
+
+    Args:
+        size (Tensor|Size|List[int]): Output shape.
+        mask_rate (float): Probability of True.
+    """
     mask = torch.randn(*size) > mask_rate
     return mask
 
@@ -100,10 +122,12 @@ def create_mask_chunk_2d(size: torch.Size,
                       [0 0 1 1]
                       [0 0 1 1]]
     3. return the mask
-    :param size:
-    :param mask_rate:
-    :param b:
-    :return:
+    Args:
+        size (torch.Size): Target 2D size.
+        mask_rate (float): Probability of True in mini mask.
+        b (int): Downsample factor for mini mask.
+    Returns:
+        Tensor: Boolean mask of shape ``size``.
     """
     mini_mask_size: torch.Tensor = torch.div(torch.tensor(size, dtype=torch.int), b, rounding_mode="floor")
     mini_mask: torch.Tensor = create_mask(mini_mask_size, mask_rate)
@@ -116,21 +140,20 @@ def create_mask_chunk_2d(size: torch.Size,
 def tensor_masking(tensor_to_mask: torch.Tensor,
                    mask_rate: float = .5, mask: Optional = None) -> \
         Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
-    """
-    Given a tensor of audio data, return a tensor of masked audio data, a tensor of unmasked audio, and the mask:
+    """Apply a boolean mask to split a tensor into masked and unmasked parts.
 
-    Mask: [True, False, True, False, False, True, False, True, False, True]
-    Mask to bit:    [1, 0, 1, 0, 0, 1, 0, 1, 0, 1]
-    Original audio: [1, 1, 4, 5, 1, 4, 1, 9, 1, 9]
-    In this case, the masked audio will be:
-                    [1, 0, 4, 0, 0, 4, 0, 9, 0, 9]
-    And the Unmasked audio will be:
-                    [0, 1, 0, 5, 1, 0, 1, 0, 1, 0]
-    Masked audio + Unmasked audio = Original audio
-    :param tensor_to_mask:
-    :param mask_rate: Masking rate
-    :param mask: Mask to use. If None, a random mask will be created.
-    :return:
+    Example:
+        Mask              [T, F, T, F]
+        Original          [1, 2, 3, 4]
+        Masked (keep T)   [1, 0, 3, 0]
+        Unmasked (keep F) [0, 2, 0, 4]
+
+    Args:
+        tensor_to_mask (Tensor): Input tensor (NumPy path used for convenience).
+        mask_rate (float): Probability of True if ``mask`` not provided.
+        mask (Tensor|None): Boolean mask; if None, a random mask is created.
+    Returns:
+        Tuple[Tensor, Tensor, Tensor]: (masked, unmasked, mask)
     """
     if mask is None:
         mask = create_mask(tensor_to_mask.shape, mask_rate)

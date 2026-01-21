@@ -1,3 +1,10 @@
+"""
+Classification testing helpers for PyTorch models.
+
+Provides an abstract tester API plus a mono-label implementation that
+computes predictions and standard metrics using scikit-learn.
+"""
+
 import numpy as np
 import sklearn.metrics as metrics
 import torch
@@ -11,6 +18,7 @@ from typing import Dict, Any
 
 @dataclass
 class MetricsStatusMap:
+    """Structured container for common classification metrics."""
     f1_score: float
     accuracy: float
     precision: float
@@ -56,6 +64,7 @@ class MetricsStatusMap:
 
 
 class ClassifierTester(abc.ABC):
+    """Abstract interface for model evaluation on a dataloader."""
 
     def __init__(self, model, device, loss_fn):
         self.model_ = model
@@ -76,6 +85,7 @@ class ClassifierTester(abc.ABC):
         self.loss_ = None  # torch.Tensor
 
     def set_loss_function(self, loss: typing.Callable):
+        """Set the loss function used when accumulating ``loss_`` during prediction."""
         self.loss_fn_ = loss
         return self
 
@@ -108,6 +118,7 @@ class ClassifierTester(abc.ABC):
         pass
 
     def status_map(self) -> typing.Dict:
+        """Return all metrics as a serializable dict after computation."""
         if not all([
             self.f1_score_ is not None,
             self.accuracy_ is not None,
@@ -138,6 +149,11 @@ class ClassifierTester(abc.ABC):
 
 
 class MonoLabelClassificationTester(ClassifierTester):
+    """Single-label (multi-class) classifier tester.
+
+    Accumulates predictions/targets across a dataloader and computes
+    accuracy, precision, recall, F1, and confusion matrix.
+    """
 
     def __init__(self,
                  model: torch.nn.Module,
@@ -147,6 +163,7 @@ class MonoLabelClassificationTester(ClassifierTester):
         super().__init__(model, device, loss_fn)
 
     def set_dataloader(self, dataloader, n_class: int) -> "MonoLabelClassificationTester":
+        """Attach a dataloader and reset metric buffers."""
         self.dataloader_ = dataloader
         self.n_classes_ = n_class
         self.y_predict_ = torch.empty(0, dtype=torch.int32).to(self.device_)
@@ -156,6 +173,7 @@ class MonoLabelClassificationTester(ClassifierTester):
 
     @torch.no_grad()
     def predict_all(self, data_preprocessor=None) -> "MonoLabelClassificationTester":
+        """Iterate over the dataloader, collect predictions, and accumulate loss if set."""
         if self.dataloader_ is None or self.y_predict_ is None or self.y_true_ is None:
             raise ValueError("dataloader, y_predict, y_true is None, use set_dataloader() before calling predict_all")
         self.model_.eval()
@@ -182,32 +200,39 @@ class MonoLabelClassificationTester(ClassifierTester):
         return self
 
     def calculate_confusion_matrix(self) -> "MonoLabelClassificationTester":
+        """Compute confusion matrix using scikit-learn."""
         self.confusion_matrix_ = metrics.confusion_matrix(self.y_true_, self.y_predict_)
         self.sklearn_confusion_matrix_ = self.confusion_matrix_
         return self
 
     def calculate_accuracy(self, ) -> "MonoLabelClassificationTester":
+        """Compute macro accuracy."""
         self.accuracy_ = metrics.accuracy_score(self.y_true_, self.y_predict_)
         return self
 
     def calculate_precision(self, ) -> "MonoLabelClassificationTester":
+        """Compute macro precision (zero_division=0)."""
         self.precision_ = metrics.precision_score(self.y_true_, self.y_predict_, average="macro", zero_division=0)
         return self
 
     def calculate_recall(self, ) -> "MonoLabelClassificationTester":
+        """Compute macro recall (zero_division=0)."""
         self.recall_ = metrics.recall_score(self.y_true_, self.y_predict_, average="macro", zero_division=0)
         return self
 
     def calculate_f1_score(self, ) -> "MonoLabelClassificationTester":
+        """Compute macro F1 score (zero_division=0)."""
         self.f1_score_ = metrics.f1_score(self.y_true_, self.y_predict_, average="macro", zero_division=0)
         return self
 
     def evaluate_model(self, data_preprocessor=None) -> typing.Dict:
+        """Run prediction + compute metrics, returning a dict summary."""
         self.predict_all(data_preprocessor)
         self.calculate_all_metrics()
         return self.status_map()
 
     def calculate_all_metrics(self) -> "MonoLabelClassificationTester":
+        """Compute precision/recall/F1/accuracy and confusion matrix in order."""
         if self.y_true_ is None or self.y_predict_ is None:
             raise ValueError("y_true, y_predict is None, use predict_all() before calling calculate_all_metrics")
         if isinstance(self.y_true_, torch.Tensor) or isinstance(self.y_predict_, torch.Tensor):
@@ -220,4 +245,5 @@ class MonoLabelClassificationTester(ClassifierTester):
         return self
 
     def classification_report(self, ):
+        """Return a human-readable classification report string."""
         return metrics.classification_report(self.y_true_, self.y_predict_, zero_division=np.nan)

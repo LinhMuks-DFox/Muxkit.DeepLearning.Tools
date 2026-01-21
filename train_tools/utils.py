@@ -1,14 +1,20 @@
+"""
+Training utilities: seeding and reproducibility helpers.
+
+Note: Enabling deterministic behavior may reduce CUDA performance.
+Behavior unchanged; docstrings improved.
+"""
+
 import random
 import numpy as np
 import torch
 
 
 def set_manual_seed(seed: int) -> None:
-    """
-    Set the random seed for Python's random, NumPy, and PyTorch across all supported devices.
+    """Seed Python, NumPy, and PyTorch RNGs (CPU/GPU) for reproducibility.
 
     Args:
-        seed (int): The seed to set for all random number generators.
+        seed (int): Seed value for RNGs.
     """
     # Python random seed
     random.seed(seed)
@@ -30,11 +36,10 @@ def set_manual_seed(seed: int) -> None:
 
     # PyTorch MPS (Apple Silicon)
     if torch.backends.mps.is_available():
-        print("Warning: MPS does not support manual seed setting for deterministic behavior.")
+        print("Warning: MPS may not support full deterministic behavior.")
 
     # PyTorch ROCm (AMD GPUs)
     if torch.backends.mps.is_built():
-        # Currently, no separate manual seed API for MPS
-        pass
+        pass  # No separate seed API
     if torch.backends.cuda.is_built():
-        torch.cuda.manual_seed(seed)  # Apply to ROCm if CUDA is using AMD backend.
+        torch.cuda.manual_seed(seed)  # Applies to ROCm backends too.

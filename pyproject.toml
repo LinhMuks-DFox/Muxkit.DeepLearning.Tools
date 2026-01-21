@@ -1,19 +1,40 @@
 [tool.poetry]
 name = "muxkit-deeplearning-tools"
 version = "0.1.0"
-description = "A tool set for Deep learning researching"
+description = "A toolkit of reusable deep learning utilities (audio, datasets, metrics, training)."
 authors = ["Mux <muxxum65536@gmail.com>"]
-readme = "README.md"
-packages = []
+readme = "Readme.md"
+# Explicitly include all top-level packages in this repo
+packages = [
+    { include = "audio_tools" },
+    { include = "dataset_tools" },
+    { include = "datasets" },
+    { include = "lossfunction" },
+    { include = "model_tools" },
+    { include = "plot_tools" },
+    { include = "score_tools" },
+    { include = "train_tools" },
+    { include = "vision_tools" },
+    { include = "utl" },
+]
 
 [tool.poetry.dependencies]
 python = "^3.10"
+torch = "^2.4.1"
 torchvision = "^0.19.1"
 torchaudio = "^2.4.1"
 scikit-learn = "^1.5.2"
 seaborn = "^0.13.2"
 scipy = "^1.14.1"
 pyroomacoustics = "^0.7.7"
+requests = {version = "^2.32.3", optional = true}
+gdown = {version = "^5.1.0", optional = true}
+pandas = {version = "^2.2.3", optional = true}
+matplotlib = {version = "^3.9.0", optional = true}
+tqdm = {version = "^4.66.0", optional = true}
+
+[tool.poetry.extras]
+datasets = ["requests", "gdown", "pandas", "matplotlib", "tqdm"]
 
 
 [build-system]
