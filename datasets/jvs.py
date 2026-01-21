@@ -12,6 +12,7 @@ import torch
 import torchaudio
 from torch.utils.data import Dataset, Subset
 
+
 class JVSDataset(Dataset):
     """
     A PyTorch Dataset for the JVS (Japanese Versatile Speech) Corpus.
@@ -35,9 +36,9 @@ class JVSDataset(Dataset):
     STYLES = ['parallel100', 'nonpara30', 'whisper10', 'falset10']
     GDRIVE_ID = "19oAw8wWn3Y7z6CKChRdAyGOB9yupL_Xt"
 
-    def __init__(self, 
-                 root_dir: typing.Union[str, pathlib.Path], 
-                 sample_rate: int = 24000, 
+    def __init__(self,
+                 root_dir: typing.Union[str, pathlib.Path],
+                 sample_rate: int = 24000,
                  download: bool = False):
         """
         Initializes the JVS Dataset.
@@ -54,7 +55,7 @@ class JVSDataset(Dataset):
         """
         self.root_dir = pathlib.Path(root_dir)
         self.target_sr = sample_rate
-        
+
         if download:
             self.download(self.root_dir)
 
@@ -63,72 +64,76 @@ class JVSDataset(Dataset):
 
         # Hierarchical Hash Map for query (O(1) access by logical keys)
         # Structure: { spk_id: { style: { sent_id: global_index } } }
-        self.index_map: typing.Dict[int, typing.Dict[str, typing.Dict[int, int]]] = {}
+        self.index_map: typing.Dict[int,
+                                    typing.Dict[str, typing.Dict[int, int]]] = {}
 
         self._build_index()
-    def _build_index(self):
-            """
-            Scans the directory structure to build the internal index and sample list.
-            """
-            if not self.root_dir.exists():
-                raise FileNotFoundError(f"Root directory {self.root_dir} not found.")
 
-            # Filter and sort speaker directories
-            spk_dirs = sorted([d for d in self.root_dir.iterdir() if d.is_dir() and d.name.startswith('jvs')])
-            
-            for spk_dir in spk_dirs:
-                try:
-                    spk_id = int(spk_dir.name.replace("jvs", "")) # e.g., jvs001 -> 1
-                except ValueError:
+    def _build_index(self):
+        """
+        Scans the directory structure to build the internal index and sample list.
+        """
+        if not self.root_dir.exists():
+            raise FileNotFoundError(
+                f"Root directory {self.root_dir} not found.")
+
+        # Filter and sort speaker directories
+        spk_dirs = sorted([d for d in self.root_dir.iterdir()
+                          if d.is_dir() and d.name.startswith('jvs')])
+
+        for spk_dir in spk_dirs:
+            try:
+                spk_id = int(spk_dir.name.replace(
+                    "jvs", ""))  # e.g., jvs001 -> 1
+            except ValueError:
+                continue
+
+            self.index_map[spk_id] = {}
+
+            for style in self.STYLES:
+                style_dir = spk_dir / style
+                if not style_dir.exists():
                     continue
 
-                self.index_map[spk_id] = {}
+                self.index_map[spk_id][style] = {}
 
-                for style in self.STYLES:
-                    style_dir = spk_dir / style
-                    if not style_dir.exists():
-                        continue
+                # 1. Load Transcripts
+                trans_file = style_dir / "transcripts_utf8.txt"
+                text_map = {}
+                if trans_file.exists():
+                    with open(trans_file, 'r', encoding='utf-8') as f:
+                        for line in f:
+                            if ':' in line:
+                                fid, txt = line.strip().split(':', 1)
+                                text_map[fid] = txt
 
-                    self.index_map[spk_id][style] = {}
-                    
-                    # 1. Load Transcripts
-                    trans_file = style_dir / "transcripts_utf8.txt"
-                    text_map = {}
-                    if trans_file.exists():
-                        with open(trans_file, 'r', encoding='utf-8') as f:
-                            for line in f:
-                                if ':' in line:
-                                    fid, txt = line.strip().split(':', 1)
-                                    text_map[fid] = txt
+                # 2. Scan Audio Files (Changed to rglob for recursive search)
+                # JVS audio is often in a subdir like 'wav24kHz'
+                wav_files = sorted(list(style_dir.rglob("*.wav")))
 
-                    # 2. Scan Audio Files (Changed to rglob for recursive search)
-                    # JVS audio is often in a subdir like 'wav24kHz'
-                    wav_files = sorted(list(style_dir.rglob("*.wav")))
-                    
-                    for wav_path in wav_files:
-                        fid = wav_path.stem
-                        
-                        # Parse Sentence ID
-                        try:
-                            sent_id = int(fid.split('_')[-1])
-                        except ValueError:
-                            sent_id = -1
+                for wav_path in wav_files:
+                    fid = wav_path.stem
 
-                        # Create Metadata
-                        meta = {
-                            "path": str(wav_path),
-                            "text": text_map.get(fid, ""),
-                            "spk_id": spk_id,
-                            "style": style,
-                            "sent_id": sent_id,
-                            "filename": fid
-                        }
-                        
-                        # Update Indices
-                        current_idx = len(self.samples)
-                        self.samples.append(meta)
-                        self.index_map[spk_id][style][sent_id] = current_idx
+                    # Parse Sentence ID
+                    try:
+                        sent_id = int(fid.split('_')[-1])
+                    except ValueError:
+                        sent_id = -1
 
+                    # Create Metadata
+                    meta = {
+                        "path": str(wav_path),
+                        "text": text_map.get(fid, ""),
+                        "spk_id": spk_id,
+                        "style": style,
+                        "sent_id": sent_id,
+                        "filename": fid
+                    }
+
+                    # Update Indices
+                    current_idx = len(self.samples)
+                    self.samples.append(meta)
+                    self.index_map[spk_id][style][sent_id] = current_idx
 
     def __len__(self) -> int:
         """Returns the total number of samples in the dataset."""
@@ -151,14 +156,14 @@ class JVSDataset(Dataset):
                 - 'sample_rate' (int): The sampling rate of the audio.
         """
         meta = self.samples[idx]
-        
+
         # Lazy Loading
         wav, sr = torchaudio.load(meta['path'])
-        
+
         # Resampling
         if sr != self.target_sr:
             wav = torchaudio.functional.resample(wav, sr, self.target_sr)
-            
+
         return {
             "audio": wav,
             "text": meta['text'],
@@ -173,8 +178,8 @@ class JVSDataset(Dataset):
     # Core Engine: Universal Query
     # ==========================================
 
-    def query(self, 
-              spk_ids: typing.Optional[typing.List[int]] = None, 
+    def query(self,
+              spk_ids: typing.Optional[typing.List[int]] = None,
               styles: typing.Optional[typing.List[str]] = None,
               sent_ids: typing.Optional[typing.List[int]] = None) -> typing.List[int]:
         """
@@ -195,20 +200,23 @@ class JVSDataset(Dataset):
             List[int]: A sorted list of global indices corresponding to the matching samples.
         """
         found_indices = []
-        
+
         # If None, use all available keys from the index
         target_spks = spk_ids if spk_ids is not None else self.index_map.keys()
-        
+
         for spk in target_spks:
-            if spk not in self.index_map: continue
-            
-            target_styles = styles if styles is not None else self.index_map[spk].keys()
-            
+            if spk not in self.index_map:
+                continue
+
+            target_styles = styles if styles is not None else self.index_map[spk].keys(
+            )
+
             for style in target_styles:
-                if style not in self.index_map[spk]: continue
-                
+                if style not in self.index_map[spk]:
+                    continue
+
                 style_map = self.index_map[spk][style]
-                
+
                 if sent_ids is None:
                     # Select all sentences for this style
                     found_indices.extend(style_map.values())
@@ -217,7 +225,7 @@ class JVSDataset(Dataset):
                     for sid in sent_ids:
                         if sid in style_map:
                             found_indices.append(style_map[sid])
-                            
+
         return sorted(found_indices)
 
     # ==========================================
@@ -239,13 +247,15 @@ class JVSDataset(Dataset):
         Raises:
             ValueError: If the specified sample does not exist in the index.
         """
-        indices = self.query(spk_ids=[spk_id], styles=[style], sent_ids=[sent_id])
+        indices = self.query(spk_ids=[spk_id], styles=[
+                             style], sent_ids=[sent_id])
         if not indices:
-            raise ValueError(f"Sample not found: Spk {spk_id}, Style {style}, Sent {sent_id}")
+            raise ValueError(
+                f"Sample not found: Spk {spk_id}, Style {style}, Sent {sent_id}")
         return self[indices[0]]
 
-    def get_parallel(self, 
-                     spk_ids: typing.List[int], 
+    def get_parallel(self,
+                     spk_ids: typing.List[int],
                      style: str = 'parallel100') -> typing.Tuple[typing.List[torch.Tensor], ...]:
         """
         Retrieves aligned parallel audio data for a list of speakers.
@@ -259,7 +269,7 @@ class JVSDataset(Dataset):
                 Must be a style where sentence IDs are consistent across speakers
                 (e.g., 'parallel100', 'whisper10', 'falset10'). 
                 Defaults to 'parallel100'.
-                
+
                 Note: Using 'nonpara30' here will likely result in an empty tuple,
                 as sentence IDs are not designed to be aligned in non-parallel data.
 
@@ -275,9 +285,9 @@ class JVSDataset(Dataset):
         # Check first speaker
         if spk_ids[0] not in self.index_map or style not in self.index_map[spk_ids[0]]:
             return tuple([] for _ in spk_ids)
-            
+
         common_sents = set(self.index_map[spk_ids[0]][style].keys())
-        
+
         # Intersect with remaining speakers
         for spk in spk_ids[1:]:
             if spk in self.index_map and style in self.index_map[spk]:
@@ -285,7 +295,7 @@ class JVSDataset(Dataset):
             else:
                 common_sents = set()
                 break
-        
+
         sorted_sents = sorted(list(common_sents))
         if not sorted_sents:
             return tuple([] for _ in spk_ids)
@@ -295,15 +305,15 @@ class JVSDataset(Dataset):
         for spk in spk_ids:
             # We use direct dictionary lookup here for speed, bypassing query() overhead
             indices = [self.index_map[spk][style][sid] for sid in sorted_sents]
-            
+
             # Load actual audio tensors
             wavs = [self[i]['audio'] for i in indices]
             batch_out.append(wavs)
-            
+
         return tuple(batch_out)
 
-    def subset(self, 
-               spk_ids: typing.Optional[typing.List[int]] = None, 
+    def subset(self,
+               spk_ids: typing.Optional[typing.List[int]] = None,
                styles: typing.Optional[typing.List[str]] = None) -> Subset:
         """
         Creates a torch.utils.data.Subset containing only the filtered samples.
@@ -328,7 +338,8 @@ class JVSDataset(Dataset):
             import gdown  # type: ignore
             import zipfile
         except ImportError as e:
-            raise ImportError("JVSDataset download requires 'gdown'. Install via: pip install gdown") from e
+            raise ImportError(
+                "JVSDataset download requires 'gdown'. Install via: pip install gdown") from e
 
         root = pathlib.Path(root_dir)
         root.mkdir(parents=True, exist_ok=True)
@@ -368,9 +379,10 @@ if __name__ == "__main__":
     print("\n[A] Testing Standard DataLoader")
     loader = DataLoader(dataset, batch_size=1, shuffle=True)
     for batch in loader:
-        print(f"  Random Batch: Spk{batch['spk_id'].item()} | Style: {batch['style'][0]}")
+        print(
+            f"  Random Batch: Spk{batch['spk_id'].item()} | Style: {batch['style'][0]}")
         print(f"  Audio Shape: {batch['audio'].shape}")
-        break 
+        break
 
     # 3. Parallel Data Usage (e.g., for Voice Conversion)
     print("\n[B] Testing Parallel Data Alignment")
@@ -378,7 +390,7 @@ if __name__ == "__main__":
     # Explicitly requesting 'parallel100' style
     # You could also request 'whisper10' or 'falset10' here
     aligned_data = dataset.get_parallel(spk_ids=spks, style='parallel100')
-    
+
     if aligned_data and len(aligned_data[0]) > 0:
         spk1_wavs, spk2_wavs = aligned_data
         print(f"  Found {len(spk1_wavs)} aligned pairs for Spk {spks}.")
@@ -401,4 +413,5 @@ if __name__ == "__main__":
     print("\n[D] Testing Subset Creation")
     # Create a subset of only 'nonpara30' data
     nonpara_subset = dataset.subset(styles=['nonpara30'])
-    print(f"  Created subset with 'nonpara30' only: {len(nonpara_subset)} samples.")
+    print(
+        f"  Created subset with 'nonpara30' only: {len(nonpara_subset)} samples.")

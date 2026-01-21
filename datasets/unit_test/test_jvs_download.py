@@ -35,4 +35,3 @@ class TestJVSDatasetDownload(unittest.TestCase):
                 self.assertTrue(os.path.exists(os.path.join(td, 'jvs001')))
         finally:
             del sys.modules['gdown']
-

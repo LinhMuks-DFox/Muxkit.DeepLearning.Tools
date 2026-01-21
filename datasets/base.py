@@ -86,7 +86,8 @@ class DownloadMixin:
                 subprocess.run(cmd, check=True)
                 return output_path
             except subprocess.CalledProcessError as e:
-                raise DownloadError(f"External download failed with {tool}: {e}")
+                raise DownloadError(
+                    f"External download failed with {tool}: {e}")
 
         # Internal downloader path requires explicit opt-in
         if not by_internal_downloader:
@@ -133,4 +134,3 @@ class DownloadMixin:
             return dest_dir
         # Fallback: unsupported formats
         raise DownloadError(f"Unsupported archive format: {archive_path}")
-

@@ -35,10 +35,13 @@ def deprecated(func):
     return new_func
 
 # A decorator to mark a function as untested
+
+
 def untested(func):
     @functools.wraps(func)
     def new_func(*args, **kwargs):
-        warnings.simplefilter('always', UntestedAPIWarning)  # ensure the warning is always shown
+        # ensure the warning is always shown
+        warnings.simplefilter('always', UntestedAPIWarning)
         warnings.warn(
             f"Call to untested function {func.__name__} with args: {args}, kwargs: {kwargs}.",
             category=UntestedAPIWarning,
@@ -63,7 +66,8 @@ def stable_api(func):
 def unfinished_api(func):
     @functools.wraps(func)
     def new_func(*args, **kwargs):
-        warnings.simplefilter('always', UnfinishedAPIWarning)  # ensure the warning is always shown
+        # ensure the warning is always shown
+        warnings.simplefilter('always', UnfinishedAPIWarning)
         warnings.warn(
             f"Call to unfinished API {func.__name__} with args: {args}, kwargs: {kwargs}.",
             category=UnfinishedAPIWarning,

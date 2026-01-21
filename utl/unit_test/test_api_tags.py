@@ -13,7 +13,8 @@ class TestApiTags(unittest.TestCase):
         with warnings.catch_warnings(record=True) as w:
             warnings.simplefilter('always')
             self.assertEqual(f(), 1)
-            self.assertTrue(any(issubclass(i.category, DeprecationWarning) for i in w))
+            self.assertTrue(
+                any(issubclass(i.category, DeprecationWarning) for i in w))
 
     def test_untested_emits_warning(self):
         @api_tags.untested
@@ -22,7 +23,8 @@ class TestApiTags(unittest.TestCase):
         with warnings.catch_warnings(record=True) as w:
             warnings.simplefilter('always')
             self.assertEqual(f(), 2)
-            self.assertTrue(any(issubclass(i.category, api_tags.UntestedAPIWarning) for i in w))
+            self.assertTrue(
+                any(issubclass(i.category, api_tags.UntestedAPIWarning) for i in w))
 
     def test_bug_api_raises(self):
         @api_tags.bug_api
@@ -30,4 +32,3 @@ class TestApiTags(unittest.TestCase):
             pass
         with self.assertRaises(NotImplementedError):
             f()
-

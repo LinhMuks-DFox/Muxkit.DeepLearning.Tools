@@ -12,7 +12,8 @@ class DummyDataset(Dataset):
     """
 
     def __init__(self, length=100):
-        self.data = [(torch.randn(3, 224, 224), torch.tensor(i)) for i in range(length)]
+        self.data = [(torch.randn(3, 224, 224), torch.tensor(i))
+                     for i in range(length)]
 
     def __len__(self):
         return len(self.data)
@@ -30,7 +31,8 @@ class TestCacheableDataset(unittest.TestCase):
         """
         Test the single process cache functionality.
         """
-        cacheable_dataset = CacheableDataset(self.dataset, max_cache_size=5, multiprocessing=False)
+        cacheable_dataset = CacheableDataset(
+            self.dataset, max_cache_size=5, multiprocessing=False)
         # Access the first element twice
         x1, y1 = cacheable_dataset[0]
         x2, y2 = cacheable_dataset[0]
@@ -39,7 +41,8 @@ class TestCacheableDataset(unittest.TestCase):
         """
         Test the multiprocessing cache functionality.
         """
-        cacheable_dataset = CacheableDataset(self.dataset, max_cache_size=5, multiprocessing=True)
+        cacheable_dataset = CacheableDataset(
+            self.dataset, max_cache_size=5, multiprocessing=True)
         # Access the first element twice
         x1, y1 = cacheable_dataset[0]
         x2, y2 = cacheable_dataset[0]
@@ -48,7 +51,8 @@ class TestCacheableDataset(unittest.TestCase):
         """
         Test that the cache size does not exceed max_cache_size.
         """
-        cacheable_dataset = CacheableDataset(self.dataset, max_cache_size=3, multiprocessing=False)
+        cacheable_dataset = CacheableDataset(
+            self.dataset, max_cache_size=3, multiprocessing=False)
 
         # Access more elements than the max_cache_size
         for i in range(5):
@@ -61,7 +65,8 @@ class TestCacheableDataset(unittest.TestCase):
         """
         Test that tensors are correctly moved to the specified device in single-process mode.
         """
-        cacheable_dataset = CacheableDataset(self.dataset, max_cache_size=5, multiprocessing=False)
+        cacheable_dataset = CacheableDataset(
+            self.dataset, max_cache_size=5, multiprocessing=False)
         x, y = cacheable_dataset[0]
 
         # Move data to a specific device (e.g., CPU)
@@ -77,7 +82,8 @@ class TestCacheableDataset(unittest.TestCase):
         """
         Test the __str__ method to ensure it provides correct debug information.
         """
-        cacheable_dataset = CacheableDataset(self.dataset, max_cache_size=5, multiprocessing=False)
+        cacheable_dataset = CacheableDataset(
+            self.dataset, max_cache_size=5, multiprocessing=False)
         info_str = str(cacheable_dataset)
         self.assertIn("Cache Strategy: Single Process Cache", info_str)
         self.assertIn("Max Cache Size: 5", info_str)

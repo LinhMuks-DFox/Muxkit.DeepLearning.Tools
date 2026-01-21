@@ -126,7 +126,8 @@ class ClassifierTester(abc.ABC):
             self.recall_ is not None,
             self.confusion_matrix_ is not None,
         ]):
-            raise ValueError("None metrics exist, use calculate_all_metrics() before calling status_map")
+            raise ValueError(
+                "None metrics exist, use calculate_all_metrics() before calling status_map")
         return MetricsStatusMap.create_metrics(
             f1_score=self.f1_score_,
             accuracy=self.accuracy_,
@@ -136,7 +137,7 @@ class ClassifierTester(abc.ABC):
         )
 
     @abc.abstractmethod
-    def evaluate_model(self,data_preprocessor=None) -> typing.Dict:
+    def evaluate_model(self, data_preprocessor=None) -> typing.Dict:
         pass
 
     @abc.abstractmethod
@@ -175,7 +176,8 @@ class MonoLabelClassificationTester(ClassifierTester):
     def predict_all(self, data_preprocessor=None) -> "MonoLabelClassificationTester":
         """Iterate over the dataloader, collect predictions, and accumulate loss if set."""
         if self.dataloader_ is None or self.y_predict_ is None or self.y_true_ is None:
-            raise ValueError("dataloader, y_predict, y_true is None, use set_dataloader() before calling predict_all")
+            raise ValueError(
+                "dataloader, y_predict, y_true is None, use set_dataloader() before calling predict_all")
         self.model_.eval()
         self.model_.to(self.device_)
         data: torch.Tensor
@@ -188,7 +190,8 @@ class MonoLabelClassificationTester(ClassifierTester):
             model_out = self.model_(data)
             predicted_y = torch.argmax(model_out, dim=1)
             if self.loss_fn_ is not None:
-                self.loss_ = torch.hstack([self.loss_, self.loss_fn_(model_out, label)])
+                self.loss_ = torch.hstack(
+                    [self.loss_, self.loss_fn_(model_out, label)])
             # if label is one-hot, convert it to int
             if len(label.shape) > 1:
                 label = torch.argmax(label, dim=1)
@@ -201,7 +204,8 @@ class MonoLabelClassificationTester(ClassifierTester):
 
     def calculate_confusion_matrix(self) -> "MonoLabelClassificationTester":
         """Compute confusion matrix using scikit-learn."""
-        self.confusion_matrix_ = metrics.confusion_matrix(self.y_true_, self.y_predict_)
+        self.confusion_matrix_ = metrics.confusion_matrix(
+            self.y_true_, self.y_predict_)
         self.sklearn_confusion_matrix_ = self.confusion_matrix_
         return self
 
@@ -212,17 +216,20 @@ class MonoLabelClassificationTester(ClassifierTester):
 
     def calculate_precision(self, ) -> "MonoLabelClassificationTester":
         """Compute macro precision (zero_division=0)."""
-        self.precision_ = metrics.precision_score(self.y_true_, self.y_predict_, average="macro", zero_division=0)
+        self.precision_ = metrics.precision_score(
+            self.y_true_, self.y_predict_, average="macro", zero_division=0)
         return self
 
     def calculate_recall(self, ) -> "MonoLabelClassificationTester":
         """Compute macro recall (zero_division=0)."""
-        self.recall_ = metrics.recall_score(self.y_true_, self.y_predict_, average="macro", zero_division=0)
+        self.recall_ = metrics.recall_score(
+            self.y_true_, self.y_predict_, average="macro", zero_division=0)
         return self
 
     def calculate_f1_score(self, ) -> "MonoLabelClassificationTester":
         """Compute macro F1 score (zero_division=0)."""
-        self.f1_score_ = metrics.f1_score(self.y_true_, self.y_predict_, average="macro", zero_division=0)
+        self.f1_score_ = metrics.f1_score(
+            self.y_true_, self.y_predict_, average="macro", zero_division=0)
         return self
 
     def evaluate_model(self, data_preprocessor=None) -> typing.Dict:
@@ -234,9 +241,11 @@ class MonoLabelClassificationTester(ClassifierTester):
     def calculate_all_metrics(self) -> "MonoLabelClassificationTester":
         """Compute precision/recall/F1/accuracy and confusion matrix in order."""
         if self.y_true_ is None or self.y_predict_ is None:
-            raise ValueError("y_true, y_predict is None, use predict_all() before calling calculate_all_metrics")
+            raise ValueError(
+                "y_true, y_predict is None, use predict_all() before calling calculate_all_metrics")
         if isinstance(self.y_true_, torch.Tensor) or isinstance(self.y_predict_, torch.Tensor):
-            raise ValueError("y_true, y_predict is None, use predict_all() before calling calculate_all_metrics")
+            raise ValueError(
+                "y_true, y_predict is None, use predict_all() before calling calculate_all_metrics")
         self.calculate_recall()
         self.calculate_f1_score()
         self.calculate_precision()

@@ -20,7 +20,8 @@ class TestClassifierTester(unittest.TestCase):
         # 设置单标签模型
         self.single_label_model = DummyModel(output_size=3)  # 3类分类问题
         self.device = torch.device("cpu")
-        self.single_label_tester = ClassifierTester(self.single_label_model, self.device, n_classes=3)
+        self.single_label_tester = ClassifierTester(
+            self.single_label_model, self.device, n_classes=3)
 
         # 设置多标签模型
         self.multi_label_model = DummyModel(output_size=3)  # 假设有3个标签
@@ -32,23 +33,30 @@ class TestClassifierTester(unittest.TestCase):
         self.num_features = 10
         self.num_classes = 3
 
-        self.single_label_data = torch.randn(self.batch_size, self.num_features)
-        self.single_label_target = torch.randint(0, self.num_classes, (self.batch_size,))
+        self.single_label_data = torch.randn(
+            self.batch_size, self.num_features)
+        self.single_label_target = torch.randint(
+            0, self.num_classes, (self.batch_size,))
 
         self.multi_label_data = torch.randn(self.batch_size, self.num_features)
-        self.multi_label_target = torch.randint(0, 2, (self.batch_size, self.num_classes))  # 假设二进制标签
+        self.multi_label_target = torch.randint(
+            0, 2, (self.batch_size, self.num_classes))  # 假设二进制标签
 
         # 模拟的dataloader
-        self.single_label_dataloader = [(self.single_label_data, self.single_label_target)]
-        self.multi_label_dataloader = [(self.multi_label_data, self.multi_label_target)]
+        self.single_label_dataloader = [
+            (self.single_label_data, self.single_label_target)]
+        self.multi_label_dataloader = [
+            (self.multi_label_data, self.multi_label_target)]
 
     def test_single_label_prediction(self):
         """测试单标签分类的预测"""
         self.single_label_tester.set_dataloader(self.single_label_dataloader)
         self.single_label_tester.predict_all(multi_label=False)
 
-        self.assertEqual(self.single_label_tester.y_true_.shape[0], self.batch_size)
-        self.assertEqual(self.single_label_tester.y_predict_.shape[0], self.batch_size)
+        self.assertEqual(
+            self.single_label_tester.y_true_.shape[0], self.batch_size)
+        self.assertEqual(
+            self.single_label_tester.y_predict_.shape[0], self.batch_size)
 
     def test_single_label_metrics(self):
         """测试单标签分类的指标计算"""
@@ -66,8 +74,10 @@ class TestClassifierTester(unittest.TestCase):
         self.multi_label_tester.set_dataloader(self.multi_label_dataloader)
         self.multi_label_tester.predict_all(multi_label=True)
 
-        self.assertEqual(self.multi_label_tester.y_true_.shape[0], self.batch_size)
-        self.assertEqual(self.multi_label_tester.y_predict_binary_.shape[0], self.batch_size)
+        self.assertEqual(
+            self.multi_label_tester.y_true_.shape[0], self.batch_size)
+        self.assertEqual(
+            self.multi_label_tester.y_predict_binary_.shape[0], self.batch_size)
 
     def test_multi_label_metrics(self):
         """测试多标签分类的指标计算"""
@@ -92,12 +102,14 @@ class TestClassifierTester(unittest.TestCase):
         """测试分类报告"""
         self.single_label_tester.set_dataloader(self.single_label_dataloader)
         self.single_label_tester.predict_all(multi_label=False)
-        report = self.single_label_tester.classification_report(multi_label=False)
+        report = self.single_label_tester.classification_report(
+            multi_label=False)
         self.assertIsInstance(report, str)
 
         self.multi_label_tester.set_dataloader(self.multi_label_dataloader)
         self.multi_label_tester.predict_all(multi_label=True)
-        report_multi = self.multi_label_tester.classification_report(multi_label=True)
+        report_multi = self.multi_label_tester.classification_report(
+            multi_label=True)
         self.assertIsInstance(report_multi, str)
 
 

@@ -31,7 +31,8 @@ class TestPyRoomSimulation(unittest.TestCase):
 
     def test_room_simulation_forward(self):
         module = RoomSimulation(self.make_room, self.n_mic).float()
-        audio = torch.randn(1, 16000, dtype=torch.float)  # Example mono audio input
+        # Example mono audio input
+        audio = torch.randn(1, 16000, dtype=torch.float)
 
         # Run forward
         output = module(audio)

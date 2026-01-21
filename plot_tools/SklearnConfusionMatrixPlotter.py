@@ -78,10 +78,12 @@ class ConfusionMatrixPlotter:
             original_value = cm[row, col]
             new_text = f"{text.get_text()}\n({original_value})"
             text.set_text(new_text)
-            text.set_color('white' if float(text.get_text().split('\n')[0]) > 0.5 else 'black')
+            text.set_color('white' if float(
+                text.get_text().split('\n')[0]) > 0.5 else 'black')
 
         ax.axis('off')
-        ax.set_title(f"{idx} ({self.class2label[idx]['display_name']})", fontsize=10)
+        ax.set_title(
+            f"{idx} ({self.class2label[idx]['display_name']})", fontsize=10)
 
     def plot(self, confusion_matrix, n_rows=1, n_cols=1):
         """Plot multi-class or multi-label confusion matrices.
@@ -97,7 +99,8 @@ class ConfusionMatrixPlotter:
             # 多标签分类情况，每个类别一个2x2的混淆矩阵
             num_images_per_plot = n_rows * n_cols
             total_images = len(confusion_matrix)
-            num_plots = (total_images + num_images_per_plot - 1) // num_images_per_plot
+            num_plots = (total_images + num_images_per_plot -
+                         1) // num_images_per_plot
 
             adjusted_fig_size = (n_cols * 4, n_rows * 4)
             fig, axs = plt.subplots(n_rows, n_cols, figsize=adjusted_fig_size)
@@ -106,7 +109,8 @@ class ConfusionMatrixPlotter:
             for idx, ax in enumerate(axs):
                 matrix_idx = idx
                 if matrix_idx < total_images:
-                    self._plot_individual_confusion_matrix(confusion_matrix[matrix_idx], ax, matrix_idx)
+                    self._plot_individual_confusion_matrix(
+                        confusion_matrix[matrix_idx], ax, matrix_idx)
                 else:
                     ax.axis('off')  # Hide any extra subplots
 
@@ -115,9 +119,12 @@ class ConfusionMatrixPlotter:
 
         elif confusion_matrix.ndim == 2 and confusion_matrix.shape[0] == confusion_matrix.shape[1]:
             # 多类分类情况，方阵的混淆矩阵
-            norm_confusion_matrix = confusion_matrix / (confusion_matrix.sum(axis=1, keepdims=True) + 1e-10)
-            norm_confusion_matrix = np.nan_to_num(norm_confusion_matrix)  # 处理除以零的情况
-            fig, ax = plt.subplots(figsize=(confusion_matrix.shape[0] * 1.2, confusion_matrix.shape[0] * 1.2))
+            norm_confusion_matrix = confusion_matrix / \
+                (confusion_matrix.sum(axis=1, keepdims=True) + 1e-10)
+            norm_confusion_matrix = np.nan_to_num(
+                norm_confusion_matrix)  # 处理除以零的情况
+            fig, ax = plt.subplots(
+                figsize=(confusion_matrix.shape[0] * 1.2, confusion_matrix.shape[0] * 1.2))
             sns.heatmap(norm_confusion_matrix, annot=True, fmt=".2f", cmap="Blues", cbar=True, ax=ax,
                         annot_kws={"fontsize": 8}, linewidths=.5, linecolor='black', square=True)
 
@@ -128,7 +135,8 @@ class ConfusionMatrixPlotter:
                 original_value = confusion_matrix[row, col]
                 new_text = f"{text.get_text()}\n({original_value})"
                 text.set_text(new_text)
-                text.set_color('white' if float(text.get_text().split('\n')[0]) > 0.5 else 'black')
+                text.set_color('white' if float(
+                    text.get_text().split('\n')[0]) > 0.5 else 'black')
 
             plt.tight_layout()
             return fig

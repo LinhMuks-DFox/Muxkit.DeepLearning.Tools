@@ -14,7 +14,8 @@ class TestHomulaDownload(unittest.TestCase):
         with tempfile.TemporaryDirectory() as td:
             # Arrange: create a dummy zip in the expected output path
             zip_path = os.path.join(td, HomulaRIR.ZIP_NAME)
-            m_download_file.side_effect = lambda url, out, **kwargs: self._make_zip(out)
+            m_download_file.side_effect = lambda url, out, **kwargs: self._make_zip(
+                out)
 
             # Act
             HomulaRIR.download(td, by_internal_downloader=True)
@@ -27,4 +28,3 @@ class TestHomulaDownload(unittest.TestCase):
             zf.writestr('hom/row1/pos-R1-HOM1.csv', '0,0,0')
             zf.writestr('ula/pos-ULA.csv', '0,0,0')
         return output
-

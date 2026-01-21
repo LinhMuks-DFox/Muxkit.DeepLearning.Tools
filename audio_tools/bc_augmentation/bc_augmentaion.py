@@ -63,16 +63,19 @@ def compute_gain(sound: torch.Tensor, fs, min_db=-80.0, mode='A_weighting', devi
     ).to(device)
 
     if mode == 'A_weighting':
-        windowed_frames = frames * torch.hann_window(n_fft, device=device).view(1, 1, n_fft)  # 应用窗函数
+        windowed_frames = frames * \
+            torch.hann_window(n_fft, device=device).view(1, 1, n_fft)  # 应用窗函数
         spec = torch.fft.rfft(windowed_frames)  # 对所有片段同时执行FFT
         power_spec = torch.abs(spec) ** 2
-        a_weighted_spec = power_spec * torch.pow(10, a_weight(fs, n_fft, device=device) / 10)
+        a_weighted_spec = power_spec * \
+            torch.pow(10, a_weight(fs, n_fft, device=device) / 10)
         gain = a_weighted_spec.sum(dim=-1)  # 对频率轴进行求和
     else:
         gain = (frames ** 2).mean(dim=-1)
 
     # 应用增益下限
-    min_gain_value = torch.pow(torch.tensor(10.0, device=device), torch.tensor(min_db / 10, device=device))
+    min_gain_value = torch.pow(torch.tensor(
+        10.0, device=device), torch.tensor(min_db / 10, device=device))
     gain = torch.clamp(gain, min=min_gain_value)
 
     gain_db = 10 * torch.log10(gain)
@@ -102,12 +105,14 @@ def mix_sounds(sound1, sound2, r, fs, device='cpu'):
 
     gain1 = compute_gain(sound1, fs, device=device)  # shape: [C, NumFrames]
     gain2 = compute_gain(sound2, fs, device=device)  # shape: [C, NumFrames]
-    
+
     gain1_max = gain1.max(dim=-1, keepdim=True)[0]  # shape: [C, 1]
     gain2_max = gain2.max(dim=-1, keepdim=True)[0]  # shape: [C, 1]
-    t = 1.0 / (1 + torch.pow(10, (gain1_max - gain2_max) / 20.0) * (1 - r) / r)  # shape: [C, 1]
-    mixed_sound = (sound1 * t + sound2 * (1 - t)) / torch.sqrt(t ** 2 + (1 - t) ** 2)
-    
+    t = 1.0 / (1 + torch.pow(10, (gain1_max - gain2_max) / 20.0)
+               * (1 - r) / r)  # shape: [C, 1]
+    mixed_sound = (sound1 * t + sound2 * (1 - t)) / \
+        torch.sqrt(t ** 2 + (1 - t) ** 2)
+
     return mixed_sound
 
 
@@ -121,15 +126,19 @@ class BCAugmentor(torch.nn.Module):
     @torch.no_grad
     def mix_sounds(self, sound1, sound2, r):
         """Mix two tensors using the same rule as :func:`mix_sounds`."""
-        gain1 = compute_gain(sound1, self.sample_rate, device=self.device)  # shape: [C, NumFrames]
-        gain2 = compute_gain(sound2, self.sample_rate, device=self.device)  # shape: [C, NumFrames]
-        
+        gain1 = compute_gain(sound1, self.sample_rate,
+                             device=self.device)  # shape: [C, NumFrames]
+        gain2 = compute_gain(sound2, self.sample_rate,
+                             device=self.device)  # shape: [C, NumFrames]
+
         gain1_max = gain1.max(dim=-1, keepdim=True)[0]  # shape: [C, 1]
         gain2_max = gain2.max(dim=-1, keepdim=True)[0]  # shape: [C, 1]
 
-        t = 1.0 / (1 + torch.pow(10, (gain1_max - gain2_max) / 20.0) * (1 - r) / r).view(-1, 1, 1)  # shape: [C, 1, 1]
-        mixed_sound = (sound1 * t + sound2 * (1 - t)) / torch.sqrt(t ** 2 + (1 - t) ** 2)
-        
+        t = 1.0 / (1 + torch.pow(10, (gain1_max - gain2_max) / 20.0)
+                   * (1 - r) / r).view(-1, 1, 1)  # shape: [C, 1, 1]
+        mixed_sound = (sound1 * t + sound2 * (1 - t)) / \
+            torch.sqrt(t ** 2 + (1 - t) ** 2)
+
         return mixed_sound
 
     def forward(self, sound1, sound2, r):

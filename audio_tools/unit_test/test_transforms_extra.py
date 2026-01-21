@@ -29,4 +29,3 @@ class TestTransforms(unittest.TestCase):
         x = torch.arange(20).reshape(2, 10).float()
         m1, m2, m = tensor_masking(x, 0.5)
         self.assertTrue((m1 + m2).equal(x))
-

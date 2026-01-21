@@ -23,6 +23,7 @@ class BCLearningDataset(Dataset):
         num_classes (int): Number of classes for one-hot conversion.
         device (str): Torch device to host tensors ("cpu" or "cuda").
     """
+
     def __init__(self, dataset, sample_rate, num_classes, device="cpu"):
         super().__init__()
         self.dataset = dataset
@@ -40,7 +41,8 @@ class BCLearningDataset(Dataset):
             idx2 = torch.randint(len(self.dataset), (1,)).item()
             sound1, label1 = self.dataset[idx1]
             sound2, label2 = self.dataset[idx2]
-            label1, label2 = [i if isinstance(i, torch.Tensor) else torch.tensor(i) for i in [label1, label2]]
+            label1, label2 = [i if isinstance(
+                i, torch.Tensor) else torch.tensor(i) for i in [label1, label2]]
             if not torch.equal(label1, label2):
                 break
 
@@ -52,7 +54,8 @@ class BCLearningDataset(Dataset):
             label2 = torch.eye(self.num_classes, device=self.device)[label2]
 
         r = torch.rand(1, device=label1.device)  # Random mix ratio in [0,1]
-        mixed_sound = mix_sounds(sound1, sound2, r.to(sound1.device), self.sample_rate, device=sound1.device)
+        mixed_sound = mix_sounds(sound1, sound2, r.to(
+            sound1.device), self.sample_rate, device=sound1.device)
         label = label1 * r.squeeze() + label2 * (1 - r.squeeze())
 
         return mixed_sound, label

@@ -44,7 +44,8 @@ def stati_model(model: torch.nn.Module, unit: str = "bytes") -> dict:
     param_count_without_grad = 0
 
     with ThreadPoolExecutor() as executor:
-        param_futures = [executor.submit(get_size, param) for param in model.parameters()]
+        param_futures = [executor.submit(get_size, param)
+                         for param in model.parameters()]
         param_size = sum(future.result() for future in param_futures)
 
         for param in model.parameters():
@@ -53,7 +54,8 @@ def stati_model(model: torch.nn.Module, unit: str = "bytes") -> dict:
             else:
                 param_count_without_grad += param.numel()
 
-        buffer_futures = [executor.submit(get_size, buffer) for buffer in model.buffers()]
+        buffer_futures = [executor.submit(
+            get_size, buffer) for buffer in model.buffers()]
         buffer_size = sum(future.result() for future in buffer_futures)
 
     total_size = param_size + buffer_size

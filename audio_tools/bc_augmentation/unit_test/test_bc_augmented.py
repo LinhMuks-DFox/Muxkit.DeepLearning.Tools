@@ -51,9 +51,11 @@ def compute_gain(sound, fs, min_db=-80.0, mode='A_weighting'):
         if mode == 'RMSE':
             g = np.mean(sound[i: i + n_fft] ** 2)
         elif mode == 'A_weighting':
-            spec = np.fft.rfft(np.hanning(n_fft + 1)[:-1] * sound[i: i + n_fft])
+            spec = np.fft.rfft(np.hanning(n_fft + 1)
+                               [:-1] * sound[i: i + n_fft])
             power_spec = np.abs(spec) ** 2
-            a_weighted_spec = power_spec * np.power(10, a_weight(fs, n_fft) / 10)
+            a_weighted_spec = power_spec * \
+                np.power(10, a_weight(fs, n_fft) / 10)
             g = np.sum(a_weighted_spec)
         else:
             raise Exception('Invalid mode {}'.format(mode))
@@ -96,8 +98,10 @@ class TestBCAugmentation(unittest.TestCase):
 
     def setUp(self):
         # 加载音频文件并初始化标签
-        audio1_path = "bc_augmentation/unit_test" / pathlib.Path("./1-137-A-32.wav")
-        audio2_path = "bc_augmentation/unit_test" / pathlib.Path("./1-1791-A-26.wav")
+        audio1_path = "bc_augmentation/unit_test" / \
+            pathlib.Path("./1-137-A-32.wav")
+        audio2_path = "bc_augmentation/unit_test" / \
+            pathlib.Path("./1-1791-A-26.wav")
         assert audio1_path.exists(), audio1_path.resolve()
         assert audio2_path.exists(), audio2_path.resolve()
 
@@ -112,7 +116,8 @@ class TestBCAugmentation(unittest.TestCase):
         # 使用已知的ACDNet实现的 mix 方法生成混合音频
         audio1_np = self.audio1.numpy().squeeze()  # 转换为 numpy 格式
         audio2_np = self.audio2.numpy().squeeze()
-        acdnet_mixed_audio = mix(audio1_np, audio2_np, self.mix_ratio, self.sample_rate)
+        acdnet_mixed_audio = mix(audio1_np, audio2_np,
+                                 self.mix_ratio, self.sample_rate)
 
         # 使用您自己的实现生成混合音频
         audio1_torch = self.audio1.squeeze()  # 确保音频数据为 1D
@@ -120,22 +125,27 @@ class TestBCAugmentation(unittest.TestCase):
 
         # mix_sounds(sound1, sound2, r, fs, device='cpu'):
 
-        my_mixed_audio = my_mix_sounds(audio1_torch, audio2_torch, self.mix_ratio, self.sample_rate)
+        my_mixed_audio = my_mix_sounds(
+            audio1_torch, audio2_torch, self.mix_ratio, self.sample_rate)
 
         # 比较两个混合音频的差异
         loss = torch.nn.MSELoss()
         with torch.no_grad():
-            difference = loss(torch.from_numpy(acdnet_mixed_audio), my_mixed_audio)
+            difference = loss(torch.from_numpy(
+                acdnet_mixed_audio), my_mixed_audio)
         print(difference)
-        self.assertAlmostEqual(difference, 0, delta=0.01, msg="The mixed audio waveforms differ.")
+        self.assertAlmostEqual(difference, 0, delta=0.01,
+                               msg="The mixed audio waveforms differ.")
 
     def test_label(self):
         # 使用指定的混合比例生成标签
-        mixed_label = self.label1 * self.mix_ratio + self.label2 * (1 - self.mix_ratio)
+        mixed_label = self.label1 * self.mix_ratio + \
+            self.label2 * (1 - self.mix_ratio)
 
         # 检查混合标签的正确性
         expected_label = torch.tensor([0.5, 0.5], dtype=torch.float)
-        self.assertTrue(torch.allclose(mixed_label, expected_label, atol=0.01), "The mixed label is incorrect.")
+        self.assertTrue(torch.allclose(mixed_label, expected_label,
+                        atol=0.01), "The mixed label is incorrect.")
 
 
 if __name__ == "__main__":

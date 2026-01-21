@@ -60,12 +60,15 @@ class TestModelToolsStati(unittest.TestCase):
         stats = stati_model(model, unit="mb")
 
         # Calculate expected parameter counts
-        param_count_with_grad = sum(p.numel() for p in model.parameters() if p.requires_grad)
-        param_count_without_grad = sum(p.numel() for p in model.parameters() if not p.requires_grad)
+        param_count_with_grad = sum(p.numel()
+                                    for p in model.parameters() if p.requires_grad)
+        param_count_without_grad = sum(
+            p.numel() for p in model.parameters() if not p.requires_grad)
 
         # Assert the parameter counts
         self.assertEqual(stats["param_count_with_grad"], param_count_with_grad)
-        self.assertEqual(stats["param_count_without_grad"], param_count_without_grad)
+        self.assertEqual(stats["param_count_without_grad"],
+                         param_count_without_grad)
 
         # Check if model size is in the expected range (since it's in mb, it won't be exact)
         self.assertTrue(stats["model_size"] > 0)

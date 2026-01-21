@@ -40,12 +40,16 @@ class TestDownloadMixin(unittest.TestCase):
         class Resp:
             def __init__(self):
                 self.status_code = 200
+
             def raise_for_status(self):
                 return None
+
             def iter_content(self, chunk_size=8192):
                 yield b"hello"
+
             def __enter__(self):
                 return self
+
             def __exit__(self, *args):
                 return False
 
@@ -74,4 +78,3 @@ class TestDownloadMixin(unittest.TestCase):
             out_dir = os.path.join(td, "out")
             DownloadMixin.extract_archive(zip_path, out_dir)
             self.assertTrue(os.path.exists(os.path.join(out_dir, "a.txt")))
-

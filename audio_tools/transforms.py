@@ -32,7 +32,8 @@ class TimeSequenceLengthFixer(torch.nn.Module):
     def __init__(self, fixed_length: int, sample_rate: int, mode="r"):
         super().__init__()
         if mode not in self._FIX_MODE:
-            raise ValueError(f"Invalid mode:{mode}, mode shall be {self._FIX_MODE}")
+            raise ValueError(
+                f"Invalid mode:{mode}, mode shall be {self._FIX_MODE}")
         self.mode_ = mode
         self.fixed_length = int(fixed_length * sample_rate)
 
@@ -48,7 +49,8 @@ class TimeSequenceLengthFixer(torch.nn.Module):
             if audio_data.shape[1] < self.fixed_length:
                 return self.select_time_zone(audio_data, 0)[0]
             return self.select_time_zone(audio_data,
-                                         random.randint(0, audio_data.shape[1] - self.fixed_length)
+                                         random.randint(
+                                             0, audio_data.shape[1] - self.fixed_length)
                                          )[0]
         if self.mode_ in {"s", "start"}:
             return self.select_time_zone(audio_data, 0)[0]
@@ -85,7 +87,8 @@ class SoundTrackSelector(torch.nn.Module):
     def __init__(self, mode: str):
         super().__init__()
         if mode not in self._VALID_TRACKS:
-            raise ValueError(f"mode must be one of {', '.join(self._VALID_TRACKS)}, but got {mode}")
+            raise ValueError(
+                f"mode must be one of {', '.join(self._VALID_TRACKS)}, but got {mode}")
         if mode == "random":
             mode = random.choice(["all", "left", "right", "mix"])
         if mode == "random-single":
@@ -129,7 +132,8 @@ def create_mask_chunk_2d(size: torch.Size,
     Returns:
         Tensor: Boolean mask of shape ``size``.
     """
-    mini_mask_size: torch.Tensor = torch.div(torch.tensor(size, dtype=torch.int), b, rounding_mode="floor")
+    mini_mask_size: torch.Tensor = torch.div(torch.tensor(
+        size, dtype=torch.int), b, rounding_mode="floor")
     mini_mask: torch.Tensor = create_mask(mini_mask_size, mask_rate)
     size: list = [*size]
     mask: torch.Tensor = vision_transform_fnc.resize(img=mini_mask.unsqueeze(0), size=size,
@@ -177,7 +181,8 @@ class TimeSequenceMaskingTransformer(torch.nn.Module):
         super().__init__()
 
     def forward(self, audio_data: torch.Tensor):
-        masked_audio_data, unmasked_audio_data, mask = tensor_masking(audio_data, self.mask_rate_)
+        masked_audio_data, unmasked_audio_data, mask = tensor_masking(
+            audio_data, self.mask_rate_)
         return masked_audio_data, unmasked_audio_data
 
 
@@ -200,7 +205,8 @@ class SpectrogramMaskingTransformer(torch.nn.Module):
 
     def forward(self, audio_data: torch.Tensor):
         mask = create_mask_chunk_2d(audio_data.shape[1:], self.mask_rate_)
-        masked_audio_data, unmasked_audio_data, mask = tensor_masking(audio_data, self.mask_rate_, mask=mask)
+        masked_audio_data, unmasked_audio_data, mask = tensor_masking(
+            audio_data, self.mask_rate_, mask=mask)
         self.prev_mask_ = mask
         return masked_audio_data, unmasked_audio_data
 
